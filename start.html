@@ -533,12 +533,7 @@
     </div>
 
     <script>
-        // ==================== SUPABASE CONFIG ====================
-        const SUPABASE_URL = 'https://xyzproject.supabase.co' // GANTI DENGAN URL PROJECT ANDA
-        const SUPABASE_ANON_KEY = 'eyJhbGci...' // GANTI DENGAN ANON KEY ANDA
         
-        // Inisialisasi Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
         // ==================== VARIABLES ====================
         let selectedContestants = [];
@@ -1073,82 +1068,92 @@
         }
 
         // ==================== MAP FUNCTIONS ====================
-        async function loadMaps() {
-            // Show loading
-            mapGrid.innerHTML = '';
-            mapLoadingPlaceholder.classList.remove('hidden');
-            loadingMaps.classList.remove('hidden');
-            
-            availableMaps = [];
-            
+        // ==================== MAP FUNCTIONS ====================
+async function loadMaps() {
+    // Show loading
+    mapGrid.innerHTML = '';
+    mapLoadingPlaceholder.classList.remove('hidden');
+    loadingMaps.classList.remove('hidden');
+    
+    availableMaps = [];
+    
+    try {
+        // Daftar file map yang ADA di folder maps/
+        const mapFiles = [
+            'maps/aqua.html',
+            'maps/map1.html',
+            'maps/map2.html',
+            'maps/map3.html',
+            'maps/map4.html',
+            'maps/map5.html',
+            'maps/map6.html',
+            'maps/map7.html',
+            'maps/map8.html',
+            'maps/map9.html',
+            'maps/map10.html'
+        ];
+        
+        for (const mapFile of mapFiles) {
             try {
-                // Hanya cari file map yang benar-benar ada
-                const mapFiles = [
-                    'maps/map1.html'  // Classic Arena
-                ];
+                const response = await fetch(mapFile);
                 
-                for (const mapFile of mapFiles) {
+                if (!response.ok) {
+                    console.log(`Map ${mapFile} tidak ditemukan`);
+                    continue;
+                }
+                
+                const html = await response.text();
+                
+                const scriptRegex = /window\.mapData\s*=\s*({[\s\S]*?});\s*<\/script>/i;
+                const match = html.match(scriptRegex);
+                
+                if (match && match[1]) {
                     try {
-                        const response = await fetch(mapFile);
+                        let jsonStr = match[1]
+                            .replace(/\/\/.*?[\r\n]/g, '')
+                            .replace(/\/\*[\s\S]*?\*\//g, '');
                         
-                        if (!response.ok) {
-                            console.log(`Map ${mapFile} tidak ditemukan`);
-                            continue;
-                        }
+                        const mapData = new Function('return ' + jsonStr)();
                         
-                        const html = await response.text();
-                        
-                        const scriptRegex = /window\.mapData\s*=\s*({[\s\S]*?});\s*<\/script>/i;
-                        const match = html.match(scriptRegex);
-                        
-                        if (match && match[1]) {
-                            try {
-                                let jsonStr = match[1]
-                                    .replace(/\/\/.*?[\r\n]/g, '')
-                                    .replace(/\/\*[\s\S]*?\*\//g, '');
-                                
-                                const mapData = new Function('return ' + jsonStr)();
-                                
-                                if (mapData && mapData.id) {
-                                    availableMaps.push(mapData);
-                                    console.log(`✅ Map dimuat: ${mapData.name}`);
-                                }
-                            } catch (e) {
-                                console.error(`❌ Gagal parse ${mapFile}:`, e);
-                            }
+                        if (mapData && mapData.id) {
+                            availableMaps.push(mapData);
+                            console.log(`✅ Map dimuat: ${mapData.name}`);
                         }
                     } catch (e) {
-                        console.log(`Error loading ${mapFile}:`, e);
+                        console.error(`❌ Gagal parse ${mapFile}:`, e);
                     }
                 }
-                
-                // Kalau tidak ada map, tambahkan default
-                if (availableMaps.length === 0) {
-                    console.log('Tidak ada map, menggunakan default');
-                    availableMaps.push({
-                        id: 'classic',
-                        name: 'Classic Arena',
-                        icon: '⚪',
-                        description: 'Arena klasik dengan celah bergerak',
-                        background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
-                        color: '#4f46e5',
-                        shadowColor: 'rgba(79, 70, 229, 0.4)',
-                        difficulty: 'Normal',
-                        gapSize: 0.35,
-                        speed: 1.0
-                    });
-                }
-                
-                displayMaps();
-                
-            } catch (error) {
-                console.error('Error loading maps:', error);
-                mapGrid.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Gagal memuat maps</div>';
-            } finally {
-                loadingMaps.classList.add('hidden');
-                mapLoadingPlaceholder.classList.add('hidden');
+            } catch (e) {
+                console.log(`Error loading ${mapFile}:`, e);
             }
         }
+        
+        // Kalau tidak ada map, pake default
+        if (availableMaps.length === 0) {
+            availableMaps.push({
+                id: 'classic',
+                name: 'Classic Arena',
+                icon: '⚪',
+                description: 'Arena klasik dengan celah bergerak',
+                background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
+                color: '#4f46e5',
+                shadowColor: 'rgba(79, 70, 229, 0.4)',
+                difficulty: 'Normal',
+                gapSize: 0.35,
+                speed: 1.0
+            });
+        }
+        
+        displayMaps();
+        
+    } catch (error) {
+        console.error('Error loading maps:', error);
+        mapGrid.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Gagal memuat maps</div>';
+    } finally {
+        loadingMaps.classList.add('hidden');
+        mapLoadingPlaceholder.classList.add('hidden');
+    }
+}
 
         // Display maps in grid
         function displayMaps() {
