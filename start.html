@@ -1082,19 +1082,9 @@
             availableMaps = [];
             
             try {
+                // Hanya cari file map yang benar-benar ada
                 const mapFiles = [
-                    'maps/rainbow.html',
-                    'maps/aqua.html',
-                    'maps/map1.html',
-                    'maps/map2.html',
-                    'maps/map3.html',
-                    'maps/map4.html',
-                    'maps/map5.html',
-                    'maps/map6.html',
-                    'maps/map7.html',
-                    'maps/map8.html',
-                    'maps/map9.html',
-                    'maps/map10.html'
+                    'maps/map1.html'  // Classic Arena
                 ];
                 
                 for (const mapFile of mapFiles) {
@@ -1132,8 +1122,9 @@
                     }
                 }
                 
+                // Kalau tidak ada map, tambahkan default
                 if (availableMaps.length === 0) {
-                    // Create default map
+                    console.log('Tidak ada map, menggunakan default');
                     availableMaps.push({
                         id: 'classic',
                         name: 'Classic Arena',
