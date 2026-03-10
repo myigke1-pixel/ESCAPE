@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape Challenge - Gameplay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tambahkan Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #020617;
+            font-family: 'Inter', system-ui, sans-serif;
+            color: white;
+            height: 100vh;
+        }
+        
+        canvas {
+            border-radius: 50%;
+            box-shadow: 0 0 80px v-bind(shadowColor);
+            max-width: 90vw;
+            max-height: 55vh;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .animate-bounce {
+            animation: bounce 0.5s ease;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .animate-pulse-slow {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+        
+        #leaderboard::-webkit-scrollbar,
+        #historyBoard::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        #leaderboard::-webkit-scrollbar-track,
+        #historyBoard::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        
+        #leaderboard::-webkit-scrollbar-thumb,
+        #historyBoard::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 10px;
+        }
+        
+        .btn-game {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .btn-game:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-game:active {
+            transform: scale(0.95);
+        }
+        
+        .map-badge {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .difficulty-badge {
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .difficulty-normal { background: #4f46e5; }
+        .difficulty-mudah { background: #10b981; }
+        .difficulty-sulit { background: #f59e0b; }
+        .difficulty-expert { background: #ef4444; }
+
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.2);
+        }
+
+        .exit-btn {
+            transition: all 0.2s;
+        }
+        
+        .exit-btn:hover {
+            background: #ef4444 !important;
+            transform: scale(1.05);
+        }
+
+        .control-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid white;
+        }
+
+        .control-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px #4f46e5;
+        }
+
+        /* Speed indicator */
+        .speed-indicator {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+            z-index: 40;
+        }
+        
+        .speed-indicator:hover {
+            transform: scale(1.05);
+            background: rgba(79, 70, 229, 0.3);
+        }
+
+        /* Speed cycle config panel */
+        .config-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 16px;
+            z-index: 50;
+            transition: all 0.3s;
+        }
+
+        .config-panel.minimized {
+            transform: translateY(calc(100% - 40px));
+        }
+
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        .config-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+
+        .config-toggle {
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+
+        .config-panel.minimized .config-toggle {
+            transform: rotate(180deg);
+        }
+
+        .config-content {
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+
+        .config-panel.minimized .config-content {
+            opacity: 0;
+            height: 0;
+            margin: 0;
+        }
+
+        .config-row {
+            margin-bottom: 12px;
+        }
+
+        .config-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .config-value {
+            color: #4f46e5;
+            font-weight: bold;
+        }
+
+        .config-slider {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .config-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #4f46e5;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+
+        .config-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            background: #4f46e5;
+            margin-left: 4px;
+        }
+
+        .speed-wave {
+            position: absolute;
+            bottom: 180px;
+            right: 320px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(79, 70, 229, 0.2);
+            animation: wave 2s infinite;
+            pointer-events: none;
+            z-index: 30;
+        }
+
+        @keyframes wave {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
+        .speed-fast {
+            color: #ef4444;
+        }
+
+        .speed-slow {
+            color: #10b981;
+        }
+
+        .speed-normal {
+            color: #4f46e5;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .summary-stat {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .summary-stat .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+
+        .summary-stat .label {
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal untuk Hasil Game -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-2xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-400">
+                🎉 GAME SELESAI! 🎉
+            </h3>
+            
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <div class="value" id="winnerEmoji">🏆</div>
+                    <div class="label">Pemenang</div>
+                    <div id="winnerName" class="text-sm font-bold mt-1">-</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value" id="totalTime">00:00</div>
+                    <div class="label">Waktu</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value" id="totalRounds">0</div>
+                    <div class="label">Round</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="value" id="totalParticipants">0</div>
+                    <div class="label">Kontestan</div>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button onclick="closeResultModal()" 
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl transition-all">
+                    Tutup
+                </button>
+                <button onclick="shareToWhatsApp()" 
+                        class="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded-xl transition-all">
+                    Share 📱
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <!-- Top Bar -->
+        <div class="absolute top-4 left-4 right-4 z-30 flex justify-between items-center">
+            <div class="flex gap-2">
+                <button id="exitBtn" class="exit-btn bg-slate-800 hover:bg-red-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all btn-game">
+                    <span>←</span> Ganti Mode
+                </button>
+                <button id="leaderboardBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all btn-game">
+                    <span>🏆</span> Leaderboard
+                </button>
+            </div>
+            
+            <div id="mapInfo" class="map-badge">
+                <!-- Akan diisi via JS -->
+            </div>
+
+            <div class="glass px-4 py-2 rounded-xl text-sm flex items-center gap-3">
+                <span id="timer" class="font-mono">00:00</span>
+                <div class="w-px h-4 bg-white/20"></div>
+                <span id="speedTimer" class="font-mono text-xs text-indigo-400">⚡ 0s</span>
+            </div>
+        </div>
+
+        <!-- Panel Kiri -->
+        <div class="absolute top-20 left-4 z-20 flex flex-col gap-4" style="max-height: calc(100vh - 120px);">
+            <!-- Papan Skor Saat Ini -->
+            <div class="w-72 p-4 rounded-xl glass stat-card">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-xs font-bold uppercase tracking-widest text-blue-400">🏃 Urutan Keluar</h2>
+                    <div class="flex items-center gap-2">
+                        <span id="modeDisplay" class="bg-indigo-600 px-2 py-0.5 rounded-full text-[10px]">Mode</span>
+                        <span id="currentRound" class="bg-indigo-600 px-2 py-0.5 rounded-full text-[10px]">Round 1</span>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between text-xs text-slate-400 mb-2">
+                    <span>Progress:</span>
+                    <span id="contestantCounter" class="text-indigo-400 font-bold">0/0</span>
+                </div>
+                
+                <ul id="leaderboard" class="text-sm space-y-1 overflow-y-auto" style="max-height: 200px; min-height: 100px;">
+                    <li class="text-slate-500 italic">Menunggu...</li>
+                </ul>
+            </div>
+            
+            <!-- Riwayat Putaran -->
+            <div id="historyPanel" class="w-72 p-4 rounded-xl glass stat-card hidden">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-2 flex justify-between items-center">
+                    <span>📜 Riwayat Putaran</span>
+                    <span id="roundCounter" class="bg-purple-600 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                </h2>
+                <ul id="historyBoard" class="text-sm space-y-1 overflow-y-auto" style="max-height: 150px;"></ul>
+            </div>
+            
+            <!-- Statistik -->
+            <div class="w-72 p-4 rounded-xl glass">
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="glass-dark p-2 rounded-lg stat-card">
+                        <span class="text-slate-400 block">Total Keluar</span>
+                        <span id="totalEscaped" class="text-2xl font-bold text-indigo-400">0</span>
+                    </div>
+                    <div class="glass-dark p-2 rounded-lg stat-card">
+                        <span class="text-slate-400 block">Sisa</span>
+                        <span id="remainingCount" class="text-2xl font-bold text-green-400">0</span>
+                    </div>
+                </div>
+                <div class="mt-2 text-center text-[10px] text-slate-500">
+                    <span id="mapDifficulty" class="difficulty-badge difficulty-normal">Normal</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Game -->
+        <div class="flex flex-col items-center justify-center flex-1">
+            <canvas id="gameCanvas" class="animate-float"></canvas>
+            
+            <!-- Controls -->
+            <div class="mt-6 flex flex-col items-center gap-4">
+                <div class="flex gap-4">
+                    <button id="replayBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-xl transition-all text-sm btn-game">
+                        🔄 Ulangi Posisi
+                    </button>
+                    <button id="nextRoundBtn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded-xl transition-all text-sm btn-game hidden">
+                        Putaran Berikutnya ▶
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-6 glass p-3 rounded-2xl">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">Rotasi</span>
+                        <input type="range" id="rotSpeed" min="0" max="10" value="4" class="control-slider w-24">
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">Manual</span>
+                        <input type="range" id="ballSpeed" min="2" max="12" value="6" class="control-slider w-24">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Speed Cycle Config Panel -->
+        <div id="configPanel" class="config-panel">
+            <div class="config-header" onclick="toggleConfigPanel()">
+                <span class="config-title">⚙️ ATUR SIKLUS KECEPATAN</span>
+                <span class="config-toggle">▼</span>
+            </div>
+            <div class="config-content">
+                <!-- Mode Cepat/Lambat -->
+                <div class="config-row">
+                    <div class="config-label">
+                        <span>Aktifkan Siklus</span>
+                        <span id="cycleStatus" class="config-value">Nonaktif</span>
+                    </div>
+                    <div class="flex gap-2 mt-1">
+                        <button id="cycleOffBtn" class="flex-1 text-xs py-1 px-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">Off</button>
+                        <button id="cycleOnBtn" class="flex-1 text-xs py-1 px-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition">On</button>
+                    </div>
+                </div>
+
+                <!-- Kecepatan Cepat -->
+                <div class="config-row">
+                    <div class="config-label">
+                        <span class="speed-fast">⚡ Kecepatan Cepat</span>
+                        <span id="fastSpeedValue" class="config-value">10</span>
+                    </div>
+                    <input type="range" id="fastSpeed" min="4" max="20" value="10" class="config-slider">
+                </div>
+
+                <!-- Durasi Cepat -->
+                <div class="config-row">
+                    <div class="config-label">
+                        <span>⏱️ Durasi Cepat</span>
+                        <span id="fastDurationValue" class="config-value">3 detik</span>
+                    </div>
+                    <input type="range" id="fastDuration" min="1" max="10" value="3" class="config-slider">
+                </div>
+
+                <!-- Kecepatan Lambat -->
+                <div class="config-row">
+                    <div class="config-label">
+                        <span class="speed-slow">🐢 Kecepatan Lambat</span>
+                        <span id="slowSpeedValue" class="config-value">3</span>
+                    </div>
+                    <input type="range" id="slowSpeed" min="1" max="8" value="3" class="config-slider">
+                </div>
+
+                <!-- Durasi Lambat -->
+                <div class="config-row">
+                    <div class="config-label">
+                        <span>⏱️ Durasi Lambat</span>
+                        <span id="slowDurationValue" class="config-value">2 detik</span>
+                    </div>
+                    <input type="range" id="slowDuration" min="1" max="10" value="2" class="config-slider">
+                </div>
+
+                <!-- Kecepatan Default -->
+                <div class="config-row">
+                    <div class="config-label">
+                        <span class="speed-normal">⚪ Kecepatan Normal</span>
+                        <span id="normalSpeedValue" class="config-value">6</span>
+                    </div>
+                    <input type="range" id="normalSpeed" min="2" max="12" value="6" class="config-slider">
+                </div>
+
+                <!-- Status Siklus -->
+                <div class="config-row mt-3 pt-2 border-t border-white/10">
+                    <div class="flex justify-between text-xs">
+                        <span>Siklus ke-</span>
+                        <span id="cycleCount" class="text-indigo-400 font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between text-xs mt-1">
+                        <span>Mode Saat Ini:</span>
+                        <span id="currentCycleMode" class="text-indigo-400 font-bold">Normal</span>
+                    </div>
+                    <div class="flex justify-between text-xs mt-1">
+                        <span>Sisa Waktu:</span>
+                        <span id="cycleTimeRemaining" class="text-indigo-400 font-bold">0s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Speed Indicator -->
+        <div id="speedIndicator" class="speed-indicator hidden">
+            <span id="speedIndicatorIcon">⚡</span>
+            <span>Kecepatan: <span id="speedValue">6</span></span>
+        </div>
+
+        <!-- Wave Animation -->
+        <div id="speedWave" class="speed-wave hidden"></div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 glass-dark px-6 py-3 rounded-xl hidden animate-bounce">
+            <p id="toastMessage" class="text-sm"></p>
+        </div>
+    </div>
+
+    <script>
+        // ==================== SUPABASE CONFIG ====================
+        const SUPABASE_URL = 'https://xyzproject.supabase.co' // GANTI DENGAN URL PROJECT ANDA
+        const SUPABASE_ANON_KEY = 'eyJhbGci...' // GANTI DENGAN ANON KEY ANDA
+        
+        // Inisialisasi Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const replayBtn = document.getElementById('replayBtn');
+        const nextRoundBtn = document.getElementById('nextRoundBtn');
+        const exitBtn = document.getElementById('exitBtn');
+        const leaderboardBtn = document.getElementById('leaderboardBtn');
+        const leaderboardEl = document.getElementById('leaderboard');
+        const historyBoard = document.getElementById('historyBoard');
+        const historyPanel = document.getElementById('historyPanel');
+        const contestantCounter = document.getElementById('contestantCounter');
+        const currentRound = document.getElementById('currentRound');
+        const totalEscaped = document.getElementById('totalEscaped');
+        const remainingCount = document.getElementById('remainingCount');
+        const modeDisplay = document.getElementById('modeDisplay');
+        const roundCounter = document.getElementById('roundCounter');
+        const mapInfo = document.getElementById('mapInfo');
+        const mapDifficulty = document.getElementById('mapDifficulty');
+        const timer = document.getElementById('timer');
+        const speedTimer = document.getElementById('speedTimer');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        const speedIndicator = document.getElementById('speedIndicator');
+        const speedIndicatorIcon = document.getElementById('speedIndicatorIcon');
+        const speedValue = document.getElementById('speedValue');
+        const speedWave = document.getElementById('speedWave');
+        
+        const rotInput = document.getElementById('rotSpeed');
+        const speedInput = document.getElementById('ballSpeed');
+
+        // Modal elements
+        const resultModal = document.getElementById('resultModal');
+        const winnerEmoji = document.getElementById('winnerEmoji');
+        const winnerName = document.getElementById('winnerName');
+        const totalTime = document.getElementById('totalTime');
+        const totalRounds = document.getElementById('totalRounds');
+        const totalParticipants = document.getElementById('totalParticipants');
+
+        // Config panel elements
+        const configPanel = document.getElementById('configPanel');
+        const cycleOffBtn = document.getElementById('cycleOffBtn');
+        const cycleOnBtn = document.getElementById('cycleOnBtn');
+        const fastSpeed = document.getElementById('fastSpeed');
+        const fastSpeedValue = document.getElementById('fastSpeedValue');
+        const fastDuration = document.getElementById('fastDuration');
+        const fastDurationValue = document.getElementById('fastDurationValue');
+        const slowSpeed = document.getElementById('slowSpeed');
+        const slowSpeedValue = document.getElementById('slowSpeedValue');
+        const slowDuration = document.getElementById('slowDuration');
+        const slowDurationValue = document.getElementById('slowDurationValue');
+        const normalSpeed = document.getElementById('normalSpeed');
+        const normalSpeedValue = document.getElementById('normalSpeedValue');
+        const cycleStatus = document.getElementById('cycleStatus');
+        const cycleCount = document.getElementById('cycleCount');
+        const currentCycleMode = document.getElementById('currentCycleMode');
+        const cycleTimeRemaining = document.getElementById('cycleTimeRemaining');
+
+        // Game variables
+        let width, height, centerX, centerY, radius = 100;
+        let gapAngle = 0;
+        let animationFrame;
+        let gameTime = 0;
+        let timerInterval;
+        
+        // Game state
+        let selectedContestants = [];
+        let selectedMap = null;
+        let balls = [];
+        let particles = [];
+        let escapedOrder = [];
+        let roundHistory = [];
+        let currentRoundNum = 1;
+        let totalEscapedCount = 0;
+        let gameMode = 'once';
+        let maxRounds = 1;
+        let audioCtx = null;
+        let colorCycle = 0;
+        let gamePaused = false;
+        let gameCompleted = false;
+        
+        // Session data
+        let currentSessionId = null;
+        let currentSessionCode = null;
+        
+        // Speed management
+        let currentSpeed = 6;
+        let baseSpeed = 6;
+        let speedChangeTimeout = null;
+        
+        // Speed cycle variables
+        let speedCycleActive = false;
+        let cycleInterval = null;
+        let cyclePhase = 'normal'; // 'normal', 'fast', 'slow'
+        let cyclePhaseTimeLeft = 0;
+        let cyclePhaseDuration = 0;
+        let cycleCounter = 0;
+        
+        // Speed cycle config
+        let fastSpeedValue_config = 10;
+        let fastDuration_config = 3;
+        let slowSpeedValue_config = 3;
+        let slowDuration_config = 2;
+        let normalSpeedValue_config = 6;
+
+        // ==================== DATABASE FUNCTIONS ====================
+        async function updateGameResult() {
+            if (!currentSessionId || escapedOrder.length === 0) return;
+            
+            try {
+                const winner = escapedOrder[0];
+                
+                // Update session status
+                await supabase
+                    .from('game_sessions')
+                    .update({ 
+                        status: 'completed',
+                        completed_at: new Date()
+                    })
+                    .eq('id', currentSessionId);
+                
+                // Update escaped order untuk contestants
+                for (let i = 0; i < escapedOrder.length; i++) {
+                    const contestant = escapedOrder[i];
+                    await supabase
+                        .from('session_contestants')
+                        .update({ 
+                            escaped_order: i + 1,
+                            escaped_at: new Date(),
+                            round_number: currentRoundNum
+                        })
+                        .eq('session_id', currentSessionId)
+                        .eq('contestant_name', contestant.name);
+                }
+                
+                // Simpan ke history
+                await supabase
+                    .from('game_history')
+                    .insert([{
+                        session_id: currentSessionId,
+                        round_number: currentRoundNum,
+                        winner_name: winner.name,
+                        winner_emoji: winner.displayEmoji || winner.emoji || winner.flag,
+                        escaped_contestants: escapedOrder,
+                        duration_seconds: gameTime
+                    }]);
+                
+                // Update global leaderboard
+                await updateGlobalLeaderboard(winner.name, winner.displayEmoji || winner.emoji || winner.flag);
+                
+                console.log('✅ Game result saved to database');
+                
+            } catch (error) {
+                console.error('Error saving game result:', error);
+            }
+        }
+
+        async function updateGlobalLeaderboard(playerName, playerEmoji) {
+            try {
+                // Cek apakah player sudah ada
+                const { data: existing } = await supabase
+                    .from('global_leaderboard')
+                    .select('*')
+                    .eq('player_name', playerName);
+                
+                if (existing && existing.length > 0) {
+                    // Update existing
+                    await supabase
+                        .from('global_leaderboard')
+                        .update({ 
+                            total_wins: existing[0].total_wins + 1,
+                            total_games: existing[0].total_games + 1,
+                            updated_at: new Date()
+                        })
+                        .eq('id', existing[0].id);
+                } else {
+                    // Insert new
+                    await supabase
+                        .from('global_leaderboard')
+                        .insert([{
+                            player_name: playerName,
+                            player_emoji: playerEmoji,
+                            total_wins: 1,
+                            total_games: 1
+                        }]);
+                }
+            } catch (error) {
+                console.error('Error updating leaderboard:', error);
+            }
+        }
+
+        async function loadSessionFromCode(sessionCode) {
+            try {
+                const { data: session, error } = await supabase
+                    .from('game_sessions')
+                    .select('*, session_contestants(*)')
+                    .eq('session_code', sessionCode)
+                    .single();
+                
+                if (error) throw error;
+                
+                if (session) {
+                    selectedMap = session.map_data;
+                    gameMode = session.mode;
+                    selectedContestants = session.session_contestants.map(c => c.contestant_data);
+                    currentSessionId = session.id;
+                    currentSessionCode = session.session_code;
+                    
+                    // Update session status
+                    await supabase
+                        .from('game_sessions')
+                        .update({ status: 'playing' })
+                        .eq('id', session.id);
+                    
+                    showToast(`Bergabung dengan session: ${sessionCode}`, 'success');
+                    return true;
+                }
+                return false;
+                
+            } catch (error) {
+                console.error('Error loading session:', error);
+                return false;
+            }
+        }
+
+        // ==================== LOAD DATA ====================
+        async function loadGameData() {
+            try {
+                // Cek session code dari URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionCode = urlParams.get('session');
+                
+                if (sessionCode) {
+                    // Load dari database
+                    const success = await loadSessionFromCode(sessionCode);
+                    if (!success) {
+                        showToast('Session tidak ditemukan, menggunakan mode offline', 'error');
+                        loadFromLocalStorage();
+                    }
+                } else {
+                    // Load dari localStorage
+                    loadFromLocalStorage();
+                }
+                
+            } catch (e) {
+                console.error('Error loading game data:', e);
+                loadFromLocalStorage();
+            }
+            
+            // Set mode display
+            if (gameMode === 'once') {
+                modeDisplay.textContent = 'Sekali';
+                maxRounds = 1;
+            } else if (gameMode === 'loop') {
+                modeDisplay.textContent = 'Loop';
+                maxRounds = Infinity;
+            } else if (gameMode === 'competitive') {
+                modeDisplay.textContent = 'Kompetitif';
+                maxRounds = 3;
+            }
+            
+            // Set current speed from slider
+            currentSpeed = parseInt(speedInput.value);
+            baseSpeed = currentSpeed;
+            speedValue.textContent = currentSpeed;
+            
+            // Update map info
+            updateMapInfo();
+            
+            // Check if no contestants
+            if (selectedContestants.length === 0) {
+                console.log('⚠️ Tidak ada kontestan, kembali ke start.html');
+                showToast('Tidak ada kontestan dipilih!', 'error');
+                setTimeout(() => {
+                    window.location.href = 'start.html';
+                }, 2000);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            const savedContestants = localStorage.getItem('selectedContestants');
+            const savedMode = localStorage.getItem('gameMode');
+            const savedMap = localStorage.getItem('selectedMap');
+            const savedSessionId = localStorage.getItem('lastSessionId');
+            const savedSessionCode = localStorage.getItem('lastSessionCode');
+            
+            if (savedContestants) {
+                selectedContestants = JSON.parse(savedContestants);
+                console.log('✅ Kontestan dimuat dari localStorage:', selectedContestants.length);
+            }
+            
+            if (savedMode) {
+                gameMode = savedMode;
+            }
+            
+            if (savedMap) {
+                selectedMap = JSON.parse(savedMap);
+            } else {
+                selectedMap = {
+                    id: 'classic',
+                    name: 'Classic Arena',
+                    description: 'Arena standar dengan celah yang bergerak',
+                    icon: '⚪',
+                    color: '#4f46e5',
+                    background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
+                    gapSize: 0.35,
+                    wallColor: '#6366f1',
+                    shadowColor: 'rgba(99, 102, 241, 0.4)',
+                    difficulty: 'Normal',
+                    speed: 1.0,
+                    isDual: false,
+                    isChaos: false,
+                    isFrozen: false,
+                    isRainbow: false
+                };
+            }
+            
+            if (savedSessionId) {
+                currentSessionId = savedSessionId;
+            }
+            
+            if (savedSessionCode) {
+                currentSessionCode = savedSessionCode;
+            }
+        }
+
+        // ========== SPEED CYCLE FUNCTIONS ==========
+        
+        function initSpeedCycleControls() {
+            // Fast speed slider
+            fastSpeed.addEventListener('input', (e) => {
+                fastSpeedValue_config = parseInt(e.target.value);
+                fastSpeedValue.textContent = fastSpeedValue_config;
+            });
+            
+            // Fast duration slider
+            fastDuration.addEventListener('input', (e) => {
+                fastDuration_config = parseInt(e.target.value);
+                fastDurationValue.textContent = fastDuration_config + ' detik';
+            });
+            
+            // Slow speed slider
+            slowSpeed.addEventListener('input', (e) => {
+                slowSpeedValue_config = parseInt(e.target.value);
+                slowSpeedValue.textContent = slowSpeedValue_config;
+            });
+            
+            // Slow duration slider
+            slowDuration.addEventListener('input', (e) => {
+                slowDuration_config = parseInt(e.target.value);
+                slowDurationValue.textContent = slowDuration_config + ' detik';
+            });
+            
+            // Normal speed slider
+            normalSpeed.addEventListener('input', (e) => {
+                normalSpeedValue_config = parseInt(e.target.value);
+                normalSpeedValue.textContent = normalSpeedValue_config;
+                if (!speedCycleActive) {
+                    currentSpeed = normalSpeedValue_config;
+                    baseSpeed = normalSpeedValue_config;
+                    speedInput.value = normalSpeedValue_config;
+                    speedValue.textContent = normalSpeedValue_config;
+                    updateAllBallsSpeed(currentSpeed);
+                }
+            });
+            
+            // Cycle off button
+            cycleOffBtn.addEventListener('click', () => {
+                stopSpeedCycle();
+                cycleStatus.textContent = 'Nonaktif';
+                cycleStatus.classList.remove('text-green-400');
+                cycleStatus.classList.add('text-slate-400');
+                cycleOffBtn.classList.add('bg-indigo-600');
+                cycleOffBtn.classList.remove('bg-slate-700');
+                cycleOnBtn.classList.remove('bg-indigo-600');
+                cycleOnBtn.classList.add('bg-slate-700');
+                
+                // Reset to normal speed
+                currentSpeed = normalSpeedValue_config;
+                baseSpeed = normalSpeedValue_config;
+                speedInput.value = normalSpeedValue_config;
+                speedValue.textContent = normalSpeedValue_config;
+                updateAllBallsSpeed(currentSpeed);
+                showToast('Siklus kecepatan dimatikan', 'info');
+            });
+            
+            // Cycle on button
+            cycleOnBtn.addEventListener('click', () => {
+                startSpeedCycle();
+                cycleStatus.textContent = 'Aktif';
+                cycleStatus.classList.add('text-green-400');
+                cycleStatus.classList.remove('text-slate-400');
+                cycleOnBtn.classList.add('bg-indigo-600');
+                cycleOnBtn.classList.remove('bg-slate-700');
+                cycleOffBtn.classList.remove('bg-indigo-600');
+                cycleOffBtn.classList.add('bg-slate-700');
+                showToast('Siklus kecepatan diaktifkan', 'success');
+            });
+            
+            // Set initial values
+            fastSpeedValue.textContent = fastSpeedValue_config;
+            fastDurationValue.textContent = fastDuration_config + ' detik';
+            slowSpeedValue.textContent = slowSpeedValue_config;
+            slowDurationValue.textContent = slowDuration_config + ' detik';
+            normalSpeedValue.textContent = normalSpeedValue_config;
+        }
+        
+        function startSpeedCycle() {
+            if (speedCycleActive) return;
+            
+            speedCycleActive = true;
+            cycleCounter = 0;
+            cyclePhase = 'normal';
+            cyclePhaseTimeLeft = 0;
+            
+            // Clear any existing interval
+            if (cycleInterval) {
+                clearInterval(cycleInterval);
+            }
+            
+            // Start cycle
+            nextCyclePhase();
+            
+            // Update cycle every second
+            cycleInterval = setInterval(() => {
+                if (gamePaused || gameCompleted) return;
+                
+                cyclePhaseTimeLeft--;
+                cycleTimeRemaining.textContent = cyclePhaseTimeLeft + 's';
+                
+                if (cyclePhaseTimeLeft <= 0) {
+                    nextCyclePhase();
+                }
+            }, 1000);
+        }
+        
+        function stopSpeedCycle() {
+            speedCycleActive = false;
+            if (cycleInterval) {
+                clearInterval(cycleInterval);
+                cycleInterval = null;
+            }
+            cyclePhase = 'normal';
+            cyclePhaseTimeLeft = 0;
+            cycleCount.textContent = '0';
+            currentCycleMode.textContent = 'Normal';
+            cycleTimeRemaining.textContent = '0s';
+        }
+        
+        function nextCyclePhase() {
+            if (!speedCycleActive) return;
+            
+            cycleCounter++;
+            cycleCount.textContent = cycleCounter;
+            
+            // Cycle through phases: normal -> fast -> normal -> slow -> repeat
+            if (cyclePhase === 'normal') {
+                // Randomly choose fast or slow
+                if (Math.random() > 0.5) {
+                    cyclePhase = 'fast';
+                    currentSpeed = fastSpeedValue_config;
+                    cyclePhaseDuration = fastDuration_config;
+                    currentCycleMode.textContent = 'Cepat ⚡';
+                    speedIndicatorIcon.innerHTML = '⚡';
+                    showSpeedChange('Cepat!', fastSpeedValue_config);
+                    createSpeedWave('fast');
+                } else {
+                    cyclePhase = 'slow';
+                    currentSpeed = slowSpeedValue_config;
+                    cyclePhaseDuration = slowDuration_config;
+                    currentCycleMode.textContent = 'Lambat 🐢';
+                    speedIndicatorIcon.innerHTML = '🐢';
+                    showSpeedChange('Lambat!', slowSpeedValue_config);
+                    createSpeedWave('slow');
+                }
+            } else {
+                cyclePhase = 'normal';
+                currentSpeed = normalSpeedValue_config;
+                cyclePhaseDuration = Math.floor((fastDuration_config + slowDuration_config) / 2);
+                currentCycleMode.textContent = 'Normal ⚪';
+                speedIndicatorIcon.innerHTML = '⚪';
+                showSpeedChange('Normal', normalSpeedValue_config);
+                createSpeedWave('normal');
+            }
+            
+            cyclePhaseTimeLeft = cyclePhaseDuration;
+            cycleTimeRemaining.textContent = cyclePhaseTimeLeft + 's';
+            
+            // Update actual speed
+            speedValue.textContent = currentSpeed;
+            updateAllBallsSpeed(currentSpeed);
+            
+            // Update manual slider to match
+            speedInput.value = currentSpeed;
+        }
+        
+        function showSpeedChange(mode, speed) {
+            speedIndicator.classList.remove('hidden');
+            speedIndicator.innerHTML = `<span>${mode} ${speed}</span>`;
+            
+            if (speedChangeTimeout) {
+                clearTimeout(speedChangeTimeout);
+            }
+            
+            speedChangeTimeout = setTimeout(() => {
+                speedIndicator.classList.add('hidden');
+            }, 1500);
+        }
+        
+        function createSpeedWave(type) {
+            speedWave.classList.remove('hidden');
+            speedWave.style.background = type === 'fast' ? 'rgba(239, 68, 68, 0.3)' : 
+                                        type === 'slow' ? 'rgba(16, 185, 129, 0.3)' : 
+                                        'rgba(79, 70, 229, 0.3)';
+            
+            setTimeout(() => {
+                speedWave.classList.add('hidden');
+            }, 1000);
+        }
+
+        // ========== EXISTING SPEED FUNCTIONS ==========
+        
+        function updateAllBallsSpeed(newSpeed) {
+            balls.forEach(ball => {
+                if (!ball.escaped) {
+                    const currentV = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                    if (currentV > 0) {
+                        const ratio = newSpeed / currentV;
+                        ball.vx *= ratio;
+                        ball.vy *= ratio;
+                    } else {
+                        ball.vx = (Math.random() - 0.5) * newSpeed;
+                        ball.vy = (Math.random() - 0.5) * newSpeed;
+                    }
+                }
+            });
+        }
+
+        function resetBalls() {
+            if (speedCycleActive) {
+                currentSpeed = normalSpeedValue_config;
+                cyclePhase = 'normal';
+                cyclePhaseTimeLeft = 0;
+                currentCycleMode.textContent = 'Normal';
+            } else {
+                currentSpeed = parseInt(speedInput.value);
+            }
+            
+            speedValue.textContent = currentSpeed;
+            
+            balls = selectedContestants.map((contestant) => ({
+                ...contestant,
+                x: centerX + (Math.random() - 0.5) * (radius * 0.8),
+                y: centerY + (Math.random() - 0.5) * (radius * 0.8),
+                vx: (Math.random() - 0.5) * currentSpeed,
+                vy: (Math.random() - 0.5) * currentSpeed,
+                r: 18,
+                escaped: false,
+                trail: []
+            }));
+            
+            resolveOverlaps();
+        }
+
+        // Event listener untuk speed slider manual
+        speedInput.addEventListener('input', (e) => {
+            if (speedCycleActive) {
+                // If cycle is active, turning manual slider will deactivate cycle
+                stopSpeedCycle();
+                cycleStatus.textContent = 'Nonaktif';
+                cycleStatus.classList.remove('text-green-400');
+                cycleStatus.classList.add('text-slate-400');
+                cycleOffBtn.classList.add('bg-indigo-600');
+                cycleOffBtn.classList.remove('bg-slate-700');
+                cycleOnBtn.classList.remove('bg-indigo-600');
+                cycleOnBtn.classList.add('bg-slate-700');
+                showToast('Siklus dimatikan (manual control)', 'info');
+            }
+            
+            const newSpeed = parseInt(e.target.value);
+            currentSpeed = newSpeed;
+            baseSpeed = newSpeed;
+            speedValue.textContent = newSpeed;
+            
+            speedIndicator.classList.remove('hidden');
+            updateAllBallsSpeed(newSpeed);
+            
+            if (speedChangeTimeout) {
+                clearTimeout(speedChangeTimeout);
+            }
+            
+            speedChangeTimeout = setTimeout(() => {
+                speedIndicator.classList.add('hidden');
+            }, 1500);
+            
+            playSound(200 + newSpeed * 20, 'sine', 0.05);
+        });
+
+        // Toggle config panel
+        window.toggleConfigPanel = function() {
+            configPanel.classList.toggle('minimized');
+        };
+
+        // Helper Functions
+        function showToast(message, type = 'info') {
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function updateMapInfo() {
+            if (!selectedMap) return;
+            
+            mapInfo.innerHTML = `
+                <span class="text-xl">${selectedMap.icon}</span>
+                <span class="font-bold">${selectedMap.name}</span>
+            `;
+            
+            mapDifficulty.textContent = selectedMap.difficulty;
+            mapDifficulty.className = `difficulty-badge difficulty-${selectedMap.difficulty.toLowerCase()}`;
+            
+            document.documentElement.style.setProperty('--shadow-color', selectedMap.shadowColor);
+        }
+
+        // Timer
+        function startTimer() {
+            gameTime = 0;
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!gamePaused && !gameCompleted) {
+                    gameTime++;
+                    const minutes = Math.floor(gameTime / 60);
+                    const seconds = gameTime % 60;
+                    timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    // Update speed timer display
+                    if (speedCycleActive) {
+                        speedTimer.textContent = `⚡ ${cyclePhaseTimeLeft}s`;
+                        speedTimer.className = cyclePhase === 'fast' ? 'font-mono text-xs text-red-400' :
+                                              cyclePhase === 'slow' ? 'font-mono text-xs text-green-400' :
+                                              'font-mono text-xs text-indigo-400';
+                    } else {
+                        speedTimer.textContent = '⚡ --';
+                    }
+                }
+            }, 1000);
+        }
+
+        // Audio
+        function initAudio() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function playSound(freq, type = 'sine', duration = 0.1) {
+            try {
+                if (!audioCtx || audioCtx.state !== 'running') return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) { }
+        }
+
+        // Particles
+        function createParticles(x, y, count = 20) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 1.0,
+                    size: Math.random() * 4 + 1,
+                    color: selectedMap?.color || '#4f46e5'
+                });
+            }
+        }
+
+        function createCelebrationParticles() {
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: centerX + (Math.random() - 0.5) * radius * 2,
+                    y: centerY + (Math.random() - 0.5) * radius * 2,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    size: Math.random() * 6 + 2,
+                    color: `hsl(${Math.random() * 360}, 100%, 60%)`
+                });
+            }
+        }
+
+        // Counters
+        function updateCounters() {
+            const escaped = balls.filter(b => b.escaped).length;
+            const remaining = balls.length - escaped;
+            contestantCounter.textContent = `${escaped}/${balls.length}`;
+            remainingCount.textContent = remaining;
+            totalEscaped.textContent = totalEscapedCount;
+        }
+
+        // History
+        function saveRoundToHistory() {
+            if (escapedOrder.length === 0) return;
+            
+            roundHistory.push({
+                round: currentRoundNum,
+                contestants: [...escapedOrder]
+            });
+            
+            roundCounter.textContent = roundHistory.length;
+            historyPanel.classList.remove('hidden');
+            
+            updateHistoryBoard();
+        }
+
+        function updateHistoryBoard() {
+            historyBoard.innerHTML = '';
+            const recentHistory = roundHistory.slice(-5).reverse();
+            
+            recentHistory.forEach(round => {
+                const roundDiv = document.createElement('li');
+                roundDiv.className = "glass-dark p-2 rounded-lg mb-2 animate-float";
+                
+                const roundTitle = document.createElement('div');
+                roundTitle.className = "text-[10px] font-bold text-purple-400 mb-1";
+                roundTitle.textContent = `Round ${round.round}`;
+                roundDiv.appendChild(roundTitle);
+                
+                const emojisDiv = document.createElement('div');
+                emojisDiv.className = "flex flex-wrap gap-1";
+                
+                round.contestants.forEach((contestant, index) => {
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.className = "text-lg relative group cursor-help";
+                    emojiSpan.innerHTML = contestant.displayEmoji || contestant.emoji || contestant.flag || '🟢';
+                    
+                    const tooltip = document.createElement('span');
+                    tooltip.className = "absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-[8px] rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-40";
+                    tooltip.textContent = `${index + 1}. ${contestant.name}`;
+                    emojiSpan.appendChild(tooltip);
+                    
+                    emojisDiv.appendChild(emojiSpan);
+                });
+                
+                roundDiv.appendChild(emojisDiv);
+                historyBoard.appendChild(roundDiv);
+            });
+        }
+
+        // Round Management
+        function nextRound() {
+            if (gameCompleted) return;
+            
+            saveRoundToHistory();
+            
+            escapedOrder = [];
+            currentRoundNum++;
+            
+            // Reset balls
+            resetBalls();
+            
+            // Update UI
+            leaderboardEl.innerHTML = '<li class="text-slate-500 italic animate-pulse-slow">Putaran baru dimulai...</li>';
+            currentRound.textContent = `Round ${currentRoundNum}`;
+            updateCounters();
+            
+            nextRoundBtn.classList.add('hidden');
+            
+            // Celebration
+            createCelebrationParticles();
+            playSound(400, 'sine', 0.3);
+            showToast(`Round ${currentRoundNum} dimulai!`, 'success');
+        }
+
+        function checkRoundComplete() {
+            const remainingBalls = balls.filter(b => !b.escaped).length;
+            
+            if (remainingBalls === 0 && !gameCompleted) {
+                if (gameMode === 'loop') {
+                    showToast(`Round ${currentRoundNum} selesai! Memulai round baru...`, 'info');
+                    setTimeout(() => {
+                        nextRound();
+                    }, 2000);
+                } else if (gameMode === 'competitive' && currentRoundNum < maxRounds) {
+                    nextRoundBtn.classList.remove('hidden');
+                    createCelebrationParticles();
+                    playSound(800, 'sine', 0.5);
+                    showToast(`Round ${currentRoundNum} selesai! Klik untuk round berikutnya`, 'success');
+                } else {
+                    // Game complete - simpan ke database
+                    gameCompleted = true;
+                    
+                    if (currentSessionId) {
+                        updateGameResult();
+                    }
+                    
+                    stopSpeedCycle();
+                    createCelebrationParticles();
+                    playSound(1000, 'sine', 0.8);
+                    
+                    // Tampilkan modal hasil
+                    showResultModal();
+                    
+                    const summary = document.createElement('li');
+                    summary.className = "text-center text-indigo-400 font-bold mt-2 pt-2 border-t border-white/10 animate-pulse-slow";
+                    summary.innerHTML = `🏆 Permainan Selesai! 🏆`;
+                    leaderboardEl.appendChild(summary);
+                }
+            }
+        }
+
+        // Modal functions
+        function showResultModal() {
+            if (escapedOrder.length > 0) {
+                const winner = escapedOrder[0];
+                winnerEmoji.textContent = winner.displayEmoji || winner.emoji || winner.flag || '🏆';
+                winnerName.textContent = winner.name;
+            }
+            
+            const minutes = Math.floor(gameTime / 60);
+            const seconds = gameTime % 60;
+            totalTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            totalRounds.textContent = currentRoundNum;
+            totalParticipants.textContent = selectedContestants.length;
+            
+            resultModal.classList.add('active');
+        }
+
+        function closeResultModal() {
+            resultModal.classList.remove('active');
+        }
+
+        function shareToWhatsApp() {
+            const winner = escapedOrder[0];
+            const text = `🎮 *Escape Challenge Results* 🎮\n\n` +
+                        `🏆 *Pemenang:* ${winner.name} ${winner.displayEmoji || winner.emoji || winner.flag}\n` +
+                        `⏱️ *Waktu:* ${totalTime.textContent}\n` +
+                        `🔄 *Round:* ${currentRoundNum}\n` +
+                        `👥 *Kontestan:* ${selectedContestants.length}\n\n` +
+                        `🌟 *Urutan Keluar:*\n` +
+                        escapedOrder.map((c, i) => `${i+1}. ${c.name} ${c.displayEmoji || c.emoji || c.flag}`).join('\n');
+            
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        // Physics
+        function resolveOverlaps() {
+            for (let i = 0; i < 30; i++) {
+                for (let a = 0; a < balls.length; a++) {
+                    for (let b = a + 1; b < balls.length; b++) {
+                        let dx = balls[b].x - balls[a].x;
+                        let dy = balls[b].y - balls[a].y;
+                        let distance = Math.sqrt(dx * dx + dy * dy);
+                        let minDistance = balls[a].r + balls[b].r;
+                        
+                        if (distance < minDistance) {
+                            if (distance === 0) {
+                                balls[a].x += (Math.random() - 0.5) * 2;
+                                balls[a].y += (Math.random() - 0.5) * 2;
+                                continue;
+                            }
+                            
+                            let overlap = minDistance - distance;
+                            let nx = dx / distance;
+                            let ny = dy / distance;
+                            
+                            balls[a].x -= nx * (overlap / 2);
+                            balls[a].y -= ny * (overlap / 2);
+                            balls[b].x += nx * (overlap / 2);
+                            balls[b].y += ny * (overlap / 2);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Initialize game
+        function init() {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+
+            width = Math.max(Math.min(window.innerWidth * 0.9, 500), 200);
+            height = width;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2;
+            radius = Math.max((width / 2) - 30, 50);
+
+            if (selectedContestants.length === 0) {
+                console.log('Tidak ada kontestan, kembali ke start');
+                window.location.href = 'start.html';
+                return;
+            }
+
+            gameCompleted = false;
+            gamePaused = false;
+            particles = [];
+            escapedOrder = [];
+            totalEscapedCount = 0;
+            
+            resetBalls();
+            updateCounters();
+            
+            startTimer();
+            
+            draw();
+        }
+
+        // Drawing
+        function draw() {
+            if (gamePaused) {
+                animationFrame = requestAnimationFrame(draw);
+                return;
+            }
+
+            ctx.clearRect(0, 0, width, height);
+            
+            // Set canvas background
+            if (selectedMap) {
+                canvas.style.background = selectedMap.background;
+            }
+            
+            // Update rainbow color
+            if (selectedMap && selectedMap.isRainbow) {
+                colorCycle = (colorCycle + 0.005) % 1;
+                const hue = colorCycle * 360;
+                selectedMap.color = `hsl(${hue}, 100%, 60%)`;
+                selectedMap.wallColor = selectedMap.color;
+                selectedMap.shadowColor = `hsla(${hue}, 100%, 60%, 0.4)`;
+            }
+            
+            // Draw outer circle
+            if (radius > 0 && selectedMap) {
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = selectedMap.shadowColor;
+                ctx.beginPath();
+                
+                if (selectedMap.isDual) {
+                    ctx.arc(centerX, centerY, radius, gapAngle + selectedMap.gapSize, gapAngle - selectedMap.gapSize + (Math.PI * 2));
+                    ctx.arc(centerX, centerY, radius, gapAngle + Math.PI + selectedMap.gapSize, gapAngle + Math.PI - selectedMap.gapSize + (Math.PI * 2));
+                } else {
+                    ctx.arc(centerX, centerY, radius, gapAngle + selectedMap.gapSize, gapAngle - selectedMap.gapSize + (Math.PI * 2));
+                }
+                
+                ctx.lineWidth = 12;
+                ctx.strokeStyle = selectedMap.wallColor;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // Update particles
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+                
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color || `rgba(255, 255, 255, ${p.life})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Update gap angle
+            if (selectedMap) {
+                if (selectedMap.isChaos) {
+                    gapAngle += (Math.random() - 0.5) * 0.1;
+                } else if (selectedMap.isFrozen) {
+                    // No movement
+                } else {
+                    gapAngle += (parseInt(rotInput.value) / 180) * (selectedMap.speed || 1);
+                }
+            }
+            
+            ctx.globalAlpha = 1.0;
+            
+            // Draw balls
+            for (let i = 0; i < balls.length; i++) {
+                const ball = balls[i];
+                
+                if (!ball.escaped && !gameCompleted) {
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+
+                    const dx = ball.x - centerX;
+                    const dy = ball.y - centerY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist + ball.r > radius) {
+                        let ballAngle = Math.atan2(dy, dx);
+                        if (ballAngle < 0) ballAngle += Math.PI * 2;
+                        let currentGap = gapAngle % (Math.PI * 2);
+                        if (currentGap < 0) currentGap += Math.PI * 2;
+
+                        let isAtGap = false;
+                        
+                        if (selectedMap && selectedMap.isDual) {
+                            const diff1 = Math.min(
+                                Math.abs(ballAngle - currentGap),
+                                Math.abs(ballAngle - (currentGap + Math.PI * 2)),
+                                Math.abs(ballAngle - (currentGap - Math.PI * 2))
+                            );
+                            const diff2 = Math.min(
+                                Math.abs(ballAngle - (currentGap + Math.PI)),
+                                Math.abs(ballAngle - (currentGap + Math.PI * 2)),
+                                Math.abs(ballAngle - (currentGap - Math.PI))
+                            );
+                            isAtGap = diff1 < (selectedMap.gapSize || 0.35) || diff2 < (selectedMap.gapSize || 0.35);
+                        } else {
+                            const diff = Math.min(
+                                Math.abs(ballAngle - currentGap),
+                                Math.abs(ballAngle - (currentGap + Math.PI * 2)),
+                                Math.abs(ballAngle - (currentGap - Math.PI * 2))
+                            );
+                            isAtGap = diff < (selectedMap ? selectedMap.gapSize : 0.35);
+                        }
+
+                        if (isAtGap) {
+                            ball.escaped = true;
+                            escapedOrder.push(ball);
+                            totalEscapedCount++;
+                            updateLeaderboard(ball);
+                            createParticles(ball.x, ball.y, 30);
+                            initAudio();
+                            playSound(600, 'triangle', 0.2);
+                            
+                            updateCounters();
+                            
+                            if (dist > 0) {
+                                ball.vx = (ball.vx * 0.5) + (dx / dist) * 5;
+                                ball.vy = (ball.vy * 0.5) + (dy / dist) * 5;
+                            }
+                            
+                            checkRoundComplete();
+                        } else {
+                            if (dist > 0) {
+                                const nx = dx / dist;
+                                const ny = dy / dist;
+                                const dot = ball.vx * nx + ball.vy * ny;
+                                
+                                if (dot > 0) {
+                                    ball.vx -= 1.8 * dot * nx;
+                                    ball.vy -= 1.8 * dot * ny;
+                                }
+                                
+                                const overlap = (dist + ball.r) - radius;
+                                ball.x -= nx * overlap;
+                                ball.y -= ny * overlap;
+                                
+                                ball.vx += (Math.random() - 0.5) * 0.3 * (currentSpeed / 6);
+                                ball.vy += (Math.random() - 0.5) * 0.3 * (currentSpeed / 6);
+                                
+                                playSound(120 + Math.random() * 40 * (currentSpeed / 6), 'sine', 0.03);
+                            }
+                        }
+                    }
+
+                    for (let j = i + 1; j < balls.length; j++) {
+                        const other = balls[j];
+                        if (other.escaped) continue;
+                        
+                        let dx = other.x - ball.x;
+                        let dy = other.y - ball.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < ball.r + other.r && dist > 0) {
+                            let nx = dx / dist;
+                            let ny = dy / dist;
+                            
+                            let v1n = ball.vx * nx + ball.vy * ny;
+                            let v2n = other.vx * nx + other.vy * ny;
+                            
+                            if (v1n - v2n > 0) {
+                                let v1nAfter = v2n;
+                                let v2nAfter = v1n;
+                                
+                                ball.vx += (v1nAfter - v1n) * nx;
+                                ball.vy += (v1nAfter - v1n) * ny;
+                                other.vx += (v2nAfter - v2n) * nx;
+                                other.vy += (v2nAfter - v2n) * ny;
+                            }
+                            
+                            let overlap = (ball.r + other.r) - dist;
+                            ball.x -= nx * (overlap / 2);
+                            ball.y -= ny * (overlap / 2);
+                            other.x += nx * (overlap / 2);
+                            other.y += ny * (overlap / 2);
+                            
+                            playSound(200 * (currentSpeed / 6), 'sine', 0.02);
+                        }
+                    }
+
+                    ball.trail.push({x: ball.x, y: ball.y});
+                    if (ball.trail.length > 10) ball.trail.shift();
+                } else {
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+                }
+
+                if (ball.trail && ball.trail.length > 0 && !ball.escaped) {
+                    for (let tIdx = 0; tIdx < ball.trail.length; tIdx++) {
+                        const t = ball.trail[tIdx];
+                        ctx.globalAlpha = (tIdx / ball.trail.length) * 0.2;
+                        ctx.font = "28px Arial";
+                        ctx.fillStyle = "white";
+                        ctx.fillText(ball.displayEmoji || ball.emoji || ball.flag || '🟢', t.x, t.y);
+                    }
+                }
+
+                ctx.globalAlpha = ball.escaped ? 0.3 : 1.0;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = "36px Arial";
+                ctx.fillStyle = "white";
+                
+                if (!ball.escaped && !gameCompleted) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = selectedMap ? selectedMap.color : '#4f46e5';
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+                
+                ctx.fillText(ball.displayEmoji || ball.emoji || ball.flag || '🟢', ball.x, ball.y);
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.globalAlpha = 1.0;
+            animationFrame = requestAnimationFrame(draw);
+        }
+
+        // Leaderboard
+        function updateLeaderboard(escapedBall) {
+            if (!escapedBall) return;
+            
+            if (leaderboardEl.children.length === 1 && leaderboardEl.children[0].classList.contains('italic')) {
+                leaderboardEl.innerHTML = '';
+            }
+            
+            const li = document.createElement('li');
+            li.className = "flex items-center gap-2 p-2 glass rounded-lg mb-1.5 animate-bounce";
+            li.innerHTML = `<span class="font-bold text-blue-400 min-w-[28px] text-base">${escapedOrder.length}.</span>
+                           <span class="text-2xl">${escapedBall.displayEmoji || escapedBall.emoji || escapedBall.flag || '🟢'}</span>
+                           <span class="truncate text-sm font-medium">${escapedBall.name}</span>`;
+            leaderboardEl.appendChild(li);
+            
+            leaderboardEl.scrollTop = leaderboardEl.scrollHeight;
+            setTimeout(() => li.classList.remove('animate-bounce'), 500);
+        }
+
+        // Event Listeners
+        exitBtn.onclick = () => {
+            if (confirm('Keluar ke menu utama? Progress saat ini akan hilang.')) {
+                gamePaused = true;
+                stopSpeedCycle();
+                if (timerInterval) clearInterval(timerInterval);
+                window.location.href = 'start.html';
+            }
+        };
+
+        leaderboardBtn.onclick = () => {
+            window.location.href = 'leaderboard.html';
+        };
+
+        replayBtn.onclick = () => {
+            initAudio();
+            
+            escapedOrder = [];
+            totalEscapedCount = totalEscapedCount - (balls.filter(b => b.escaped).length);
+            resetBalls();
+            
+            leaderboardEl.innerHTML = '<li class="text-slate-500 italic">Menunggu...</li>';
+            updateCounters();
+            
+            createCelebrationParticles();
+            showToast('Posisi diulang!', 'info');
+        };
+        
+        nextRoundBtn.onclick = () => {
+            nextRound();
+        };
+        
+        window.onresize = () => {
+            init();
+        };
+
+        window.onbeforeunload = () => {
+            stopSpeedCycle();
+            if (timerInterval) clearInterval(timerInterval);
+        };
+
+        // Initialize speed cycle controls
+        initSpeedCycleControls();
+
+        // Load game data and initialize
+        loadGameData().then(() => {
+            init();
+        });
+
+        // Click on canvas to init audio
+        canvas.addEventListener('click', () => {
+            initAudio();
+        });
+    </script>
+</body>
+</html>

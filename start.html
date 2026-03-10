@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape Challenge - Pilih Mode & Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tambahkan Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .contestant-chip {
+            transition: all 0.2s;
+            cursor: pointer;
+            animation: chipAppear 0.3s ease-out;
+        }
+        
+        @keyframes chipAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .contestant-chip.selected {
+            background: #4f46e5;
+            border-color: #818cf8;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(79, 70, 229, 0.5);
+        }
+        
+        .category-chip {
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .category-chip:hover {
+            transform: translateY(-2px);
+        }
+        
+        .category-chip.selected {
+            border-color: #4f46e5;
+            background: rgba(79, 70, 229, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(79, 70, 229, 0.3);
+        }
+        
+        .mode-chip {
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .mode-chip.selected {
+            border-color: #4f46e5;
+            background: rgba(79, 70, 229, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(79, 70, 229, 0.3);
+        }
+        
+        .map-chip {
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            animation: mapAppear 0.3s ease-out;
+        }
+        
+        @keyframes mapAppear {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .map-chip.selected {
+            border-color: white;
+            transform: scale(1.02);
+            box-shadow: 0 0 30px currentColor;
+        }
+        
+        .map-chip.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #10b981;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .map-preview {
+            width: 100%;
+            height: 60px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .preview-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 4px solid;
+            border-top-color: transparent;
+            animation: rotate 3s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        #contestantGrid::-webkit-scrollbar,
+        #mapGrid::-webkit-scrollbar,
+        #categoryContainer::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        
+        #contestantGrid::-webkit-scrollbar-track,
+        #mapGrid::-webkit-scrollbar-track,
+        #categoryContainer::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        
+        #contestantGrid::-webkit-scrollbar-thumb,
+        #mapGrid::-webkit-scrollbar-thumb,
+        #categoryContainer::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 10px;
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .btn-start {
+            background: linear-gradient(45deg, #4f46e5, #818cf8);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-start:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(79, 70, 229, 0.5);
+        }
+        
+        .difficulty-badge {
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .difficulty-normal { background: #4f46e5; }
+        .difficulty-mudah { background: #10b981; }
+        .difficulty-sulit { background: #f59e0b; }
+        .difficulty-expert { background: #ef4444; }
+        
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .filter-chip {
+            transition: all 0.2s;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        
+        .filter-chip:hover {
+            background: rgba(79, 70, 229, 0.3);
+        }
+        
+        .filter-chip.active {
+            background: #4f46e5;
+            border-color: #818cf8;
+        }
+        
+        .search-box {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 999px;
+            width: 100%;
+            outline: none;
+        }
+        
+        .search-box:focus {
+            border-color: #4f46e5;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .category-chip {
+            min-width: 80px;
+        }
+        
+        .filter-container {
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal untuk Session Info -->
+    <div id="sessionModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-2xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                🔗 Share Game
+            </h3>
+            
+            <div class="text-center mb-6">
+                <div class="text-sm text-slate-400 mb-2">Kode Session:</div>
+                <div class="flex gap-2">
+                    <input type="text" id="sessionCodeInput" readonly 
+                           class="search-box text-center text-2xl font-bold bg-indigo-600/20 border-indigo-500" 
+                           value="">
+                    <button onclick="copySessionCode()" 
+                            class="bg-indigo-600 hover:bg-indigo-500 px-6 rounded-xl transition-all btn-game">
+                        📋
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-sm text-slate-400 mb-6 text-center">
+                Bagikan kode ini ke temanmu untuk bermain bersama
+            </p>
+            
+            <div class="flex gap-2">
+                <button onclick="closeSessionModal()" 
+                        class="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-xl transition-all">
+                    Tutup
+                </button>
+                <button onclick="window.open('https://wa.me/?text=' + encodeURIComponent('Ayo main Escape Challenge bersama! Gunakan kode session: ' + document.getElementById('sessionCodeInput').value), '_blank')" 
+                        class="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded-xl transition-all">
+                    WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk Leaderboard -->
+    <div id="leaderboardModal" class="modal">
+        <div class="modal-content max-w-2xl">
+            <h3 class="text-2xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-400">
+                🏆 GLOBAL LEADERBOARD
+            </h3>
+            
+            <div id="leaderboardList" class="space-y-2 max-h-96 overflow-y-auto mb-4">
+                <!-- Loading -->
+                <div class="text-center py-8 text-slate-500">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-2"></div>
+                    <p>Memuat leaderboard...</p>
+                </div>
+            </div>
+            
+            <button onclick="closeLeaderboardModal()" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl transition-all">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header dengan tombol leaderboard -->
+        <div class="text-center mb-8 animate-float">
+            <h1 class="text-5xl font-black mb-2">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500">ESCAPE</span>
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">CHALLENGE</span>
+            </h1>
+            <p class="text-slate-400 mb-4">Pilih map, kontestan, dan mode permainan</p>
+            
+            <!-- Tombol navigasi -->
+            <div class="flex justify-center gap-3">
+                <button onclick="showLeaderboard()" 
+                        class="glass px-4 py-2 rounded-xl text-sm hover:bg-indigo-600 transition flex items-center gap-2 btn-game">
+                    <span>🏆</span> Leaderboard
+                </button>
+                <button onclick="showLastSession()" 
+                        class="glass px-4 py-2 rounded-xl text-sm hover:bg-indigo-600 transition flex items-center gap-2 btn-game">
+                    <span>🔄</span> Session Terakhir
+                </button>
+            </div>
+        </div>
+        
+        <!-- Loading Indicator untuk Maps -->
+        <div id="loadingMaps" class="text-center mb-4 glass-dark p-4 rounded-xl hidden">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+            <p class="mt-2 text-sm text-slate-400">Memuat maps...</p>
+        </div>
+        
+        <!-- Map Selection -->
+        <div class="glass rounded-3xl p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                Pilih Arena (Map) 
+                <span id="mapCount" class="text-sm font-normal text-slate-400 ml-2">(0 maps)</span>
+            </h2>
+            
+            <div id="mapGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-96 overflow-y-auto p-2">
+                <!-- Maps akan di-load via JavaScript -->
+                <div id="mapLoadingPlaceholder" class="col-span-full text-center py-8 text-slate-500">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-2"></div>
+                    <p>Memuat daftar map...</p>
+                </div>
+            </div>
+            
+            <!-- Tombol Refresh Maps -->
+            <div class="mt-4 text-center">
+                <button id="refreshMapsBtn" class="text-xs text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1 mx-auto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh Maps
+                </button>
+            </div>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-6">
+            <!-- Panel Kiri: Preview -->
+            <div class="md:col-span-1">
+                <div class="glass rounded-3xl p-6 h-full">
+                    <h3 class="text-sm font-bold text-slate-400 mb-3">PREVIEW ARENA</h3>
+                    
+                    <!-- Map Preview -->
+                    <div id="mapPreview" class="w-full h-48 rounded-2xl mb-4 flex items-center justify-center relative overflow-hidden" style="background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);">
+                        <div id="previewCircle" class="w-32 h-32 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+                        <div class="absolute bottom-2 right-2">
+                            <span id="mapDifficulty" class="difficulty-badge difficulty-normal">Normal</span>
+                        </div>
+                    </div>
+                    
+                    <div id="mapDescription" class="text-sm text-slate-300 mb-4">
+                        Klasik arena dengan celah bergerak
+                    </div>
+                    
+                    <!-- Contestant Preview -->
+                    <h3 class="text-sm font-bold text-slate-400 mb-2">KONTESTAN DIPILIH</h3>
+                    <div id="previewContestants" class="flex flex-wrap gap-2 mb-3 min-h-[60px] bg-slate-800/30 rounded-xl p-2">
+                        <!-- Akan diisi dengan kontestan yang dipilih -->
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="flex justify-between text-xs text-slate-500 mb-1">
+                            <span>Jumlah:</span>
+                            <span id="selectedCount" class="text-indigo-400 font-bold">0</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-1.5">
+                            <div id="selectedProgress" class="bg-indigo-500 h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel Tengah: Pemilihan Kontestan -->
+            <div class="md:col-span-2">
+                <div class="glass rounded-3xl p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                        Pilih Kontestan
+                    </h2>
+                    
+                    <!-- Loading Indicator untuk Kontestan -->
+                    <div id="loadingContestants" class="text-center mb-4 glass-dark p-4 rounded-xl hidden">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                        <p class="mt-2 text-sm text-slate-400">Memuat kontestan...</p>
+                    </div>
+                    
+                    <!-- Category Selection -->
+                    <div id="categoryContainer" class="flex gap-2 overflow-x-auto pb-2 mb-4">
+                        <!-- Categories akan di-load via JavaScript -->
+                    </div>
+                    
+                    <!-- Filter dan Search -->
+                    <div class="mb-4 space-y-3">
+                        <!-- Search Box -->
+                        <input type="text" id="searchContestant" class="search-box" placeholder="🔍 Cari kontestan...">
+                        
+                        <!-- Dynamic Filter Container -->
+                        <div id="filterContainer" class="filter-container flex flex-wrap gap-2">
+                            <span class="filter-chip active" data-filter="all">✨ Semua</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Contestant Grid -->
+                    <div id="contestantGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6 max-h-96 overflow-y-auto p-2">
+                        <!-- Diisi via JS -->
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <button id="selectAllBtn" class="text-xs text-indigo-400 hover:text-indigo-300 transition">
+                            Pilih Semua
+                        </button>
+                        <button id="clearAllBtn" class="text-xs text-slate-500 hover:text-slate-400 transition">
+                            Hapus Semua
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Mode -->
+        <div class="glass rounded-3xl p-6 mt-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                Pilih Mode Permainan
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Mode Sekali -->
+                <div id="modeOnce" class="mode-chip selected glass-dark p-5 rounded-2xl text-center">
+                    <div class="text-4xl mb-2">🎯</div>
+                    <h3 class="font-bold text-lg">Sekali</h3>
+                    <p class="text-xs text-slate-400 mb-3">Satu putaran saja</p>
+                    <div class="text-indigo-400 text-sm">1x Putaran</div>
+                </div>
+                
+                <!-- Mode Loop -->
+                <div id="modeLoop" class="mode-chip glass-dark p-5 rounded-2xl text-center">
+                    <div class="text-4xl mb-2">🔄</div>
+                    <h3 class="font-bold text-lg">Loop</h3>
+                    <p class="text-xs text-slate-400 mb-3">Putaran tak terbatas</p>
+                    <div class="text-green-400 text-sm">∞ Tak Terbatas</div>
+                </div>
+                
+                <!-- Mode Kompetitif -->
+                <div id="modeCompetitive" class="mode-chip glass-dark p-5 rounded-2xl text-center">
+                    <div class="text-4xl mb-2">🏆</div>
+                    <h3 class="font-bold text-lg">Kompetitif</h3>
+                    <p class="text-xs text-slate-400 mb-3">Tiga putaran</p>
+                    <div class="text-yellow-400 text-sm">3x Putaran</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tombol Start -->
+        <div class="mt-8 text-center">
+            <button id="startBtn" class="btn-start text-white font-bold py-4 px-16 rounded-2xl text-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100" disabled>
+                Mulai Permainan 🚀
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== SUPABASE CONFIG ====================
+        const SUPABASE_URL = 'https://xyzproject.supabase.co' // GANTI DENGAN URL PROJECT ANDA
+        const SUPABASE_ANON_KEY = 'eyJhbGci...' // GANTI DENGAN ANON KEY ANDA
+        
+        // Inisialisasi Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        // ==================== VARIABLES ====================
+        let selectedContestants = [];
+        let availableCategories = [];
+        let selectedCategory = null;
+        let selectedMap = null;
+        let gameMode = 'once';
+        let availableMaps = [];
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        // Elements
+        const contestantGrid = document.getElementById('contestantGrid');
+        const mapGrid = document.getElementById('mapGrid');
+        const startBtn = document.getElementById('startBtn');
+        const previewContestants = document.getElementById('previewContestants');
+        const selectedCount = document.getElementById('selectedCount');
+        const selectedProgress = document.getElementById('selectedProgress');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const refreshMapsBtn = document.getElementById('refreshMapsBtn');
+        const mapCount = document.getElementById('mapCount');
+        const loadingMaps = document.getElementById('loadingMaps');
+        const loadingContestants = document.getElementById('loadingContestants');
+        const mapLoadingPlaceholder = document.getElementById('mapLoadingPlaceholder');
+        const searchContestant = document.getElementById('searchContestant');
+        const categoryContainer = document.getElementById('categoryContainer');
+        const filterContainer = document.getElementById('filterContainer');
+        
+        const mapPreview = document.getElementById('mapPreview');
+        const previewCircle = document.getElementById('previewCircle');
+        const mapDescription = document.getElementById('mapDescription');
+        const mapDifficulty = document.getElementById('mapDifficulty');
+        
+        const modeOnce = document.getElementById('modeOnce');
+        const modeLoop = document.getElementById('modeLoop');
+        const modeCompetitive = document.getElementById('modeCompetitive');
+
+        // Modal elements
+        const sessionModal = document.getElementById('sessionModal');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        const sessionCodeInput = document.getElementById('sessionCodeInput');
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        // ==================== HELPER FUNCTIONS ====================
+        function showToast(message, type = 'info') {
+            // Buat toast element
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 left-1/2 transform -translate-x-1/2 glass-dark px-6 py-3 rounded-xl z-50 animate-bounce`;
+            toast.style.background = type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 
+                                     type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 
+                                     'rgba(79, 70, 229, 0.3)';
+            
+            const messageEl = document.createElement('p');
+            messageEl.className = 'text-sm';
+            messageEl.textContent = message;
+            toast.appendChild(messageEl);
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function generateSessionCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+            let code = ''
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length))
+            }
+            return code
+        }
+
+        // ==================== DATABASE FUNCTIONS ====================
+        async function saveGameSession() {
+            try {
+                const sessionCode = generateSessionCode()
+                
+                // Cek apakah kode sudah ada
+                const { data: existing } = await supabase
+                    .from('game_sessions')
+                    .select('session_code')
+                    .eq('session_code', sessionCode)
+                
+                if (existing && existing.length > 0) {
+                    return saveGameSession() // generate ulang
+                }
+                
+                // Simpan session
+                const { data: session, error: sessionError } = await supabase
+                    .from('game_sessions')
+                    .insert([{
+                        session_code: sessionCode,
+                        mode: gameMode,
+                        map_id: selectedMap.id,
+                        map_data: selectedMap,
+                        status: 'waiting'
+                    }])
+                    .select()
+                    .single()
+                
+                if (sessionError) throw sessionError
+                
+                // Simpan contestants
+                const contestantsData = selectedContestants.map(c => ({
+                    session_id: session.id,
+                    contestant_name: c.name,
+                    contestant_emoji: c.displayEmoji || c.emoji || c.flag,
+                    contestant_category: c.category,
+                    contestant_data: c
+                }))
+                
+                const { error: contestantsError } = await supabase
+                    .from('session_contestants')
+                    .insert(contestantsData)
+                
+                if (contestantsError) throw contestantsError
+                
+                return { session, sessionCode }
+                
+            } catch (error) {
+                console.error('Error saving game session:', error)
+                throw error
+            }
+        }
+
+        async function getGlobalLeaderboard(limit = 10) {
+            try {
+                const { data, error } = await supabase
+                    .from('global_leaderboard')
+                    .select('*')
+                    .order('total_wins', { ascending: false })
+                    .limit(limit)
+                
+                if (error) throw error
+                return data || []
+            } catch (error) {
+                console.error('Error loading leaderboard:', error)
+                return []
+            }
+        }
+
+        async function getLastSession() {
+            try {
+                const lastSessionId = localStorage.getItem('lastSessionId')
+                if (!lastSessionId) {
+                    showToast('Belum ada session sebelumnya', 'info')
+                    return
+                }
+                
+                const { data: session, error } = await supabase
+                    .from('game_sessions')
+                    .select('*, session_contestants(*)')
+                    .eq('id', lastSessionId)
+                    .single()
+                
+                if (error) throw error
+                
+                if (session) {
+                    // Tampilkan info session
+                    showToast(`Session terakhir: ${session.session_code} (${session.mode})`, 'info')
+                }
+                
+            } catch (error) {
+                console.error('Error loading last session:', error)
+                showToast('Gagal memuat session terakhir', 'error')
+            }
+        }
+
+        // ==================== MODE SELECTION ====================
+        modeOnce.onclick = () => {
+            document.querySelectorAll('.mode-chip').forEach(m => m.classList.remove('selected'));
+            modeOnce.classList.add('selected');
+            gameMode = 'once';
+        };
+        
+        modeLoop.onclick = () => {
+            document.querySelectorAll('.mode-chip').forEach(m => m.classList.remove('selected'));
+            modeLoop.classList.add('selected');
+            gameMode = 'loop';
+        };
+        
+        modeCompetitive.onclick = () => {
+            document.querySelectorAll('.mode-chip').forEach(m => m.classList.remove('selected'));
+            modeCompetitive.classList.add('selected');
+            gameMode = 'competitive';
+        };
+
+        // ==================== CONTESTANT FUNCTIONS ====================
+        // Load all contestants from contestant folder
+        async function loadContestants() {
+            const contestantFiles = [
+                'contestant/negara.html',
+                'contestant/hewan.html',
+                'contestant/buah.html',
+                'contestant/kendaraan.html',
+                'contestant/profesi.html',
+                'contestant/fantasy.html'
+            ];
+            
+            loadingContestants.classList.remove('hidden');
+            availableCategories = [];
+            
+            for (const file of contestantFiles) {
+                try {
+                    const response = await fetch(file);
+                    if (!response.ok) {
+                        console.log(`File ${file} tidak ditemukan`);
+                        continue;
+                    }
+                    
+                    const html = await response.text();
+                    
+                    // Extract contestantData from script tag
+                    const scriptRegex = /window\.contestantData\s*=\s*({[\s\S]*?});\s*<\/script>/i;
+                    const match = html.match(scriptRegex);
+                    
+                    if (match && match[1]) {
+                        try {
+                            // Clean up the JSON string
+                            let jsonStr = match[1]
+                                .replace(/\/\/.*?[\r\n]/g, '') // Remove // comments
+                                .replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ comments
+                            
+                            // Parse JSON
+                            const categoryData = new Function('return ' + jsonStr)();
+                            
+                            if (categoryData && categoryData.category) {
+                                // Add category if not exists
+                                if (!availableCategories.find(c => c.category === categoryData.category)) {
+                                    availableCategories.push(categoryData);
+                                    console.log(`✅ Kategori dimuat: ${categoryData.name} (${categoryData.contestants.length} kontestan)`);
+                                }
+                            }
+                        } catch (e) {
+                            console.error(`❌ Gagal parse ${file}:`, e);
+                        }
+                    }
+                } catch (e) {
+                    console.log(`Error loading ${file}:`, e);
+                }
+            }
+            
+            loadingContestants.classList.add('hidden');
+            
+            // If no categories found, create default
+            if (availableCategories.length === 0) {
+                console.log('Membuat kategori default...');
+                availableCategories = [{
+                    category: "negara",
+                    name: "🌍 Negara",
+                    icon: "🌍",
+                    description: "Bendera negara",
+                    contestants: [
+                        { name: 'Indonesia', emoji: '🇮🇩', flag: '🇮🇩', region: 'asia' },
+                        { name: 'Malaysia', emoji: '🇲🇾', flag: '🇲🇾', region: 'asia' },
+                        { name: 'Singapura', emoji: '🇸🇬', flag: '🇸🇬', region: 'asia' },
+                        { name: 'Jepang', emoji: '🇯🇵', flag: '🇯🇵', region: 'asia' },
+                        { name: 'Korea', emoji: '🇰🇷', flag: '🇰🇷', region: 'asia' }
+                    ]
+                }];
+            }
+            
+            // Display categories
+            displayCategories();
+        }
+
+        // Display category chips
+        function displayCategories() {
+            categoryContainer.innerHTML = '';
+            
+            availableCategories.forEach((category, index) => {
+                const chip = document.createElement('div');
+                chip.className = `category-chip glass-dark p-3 rounded-xl text-center ${index === 0 ? 'selected' : ''}`;
+                chip.setAttribute('data-category', category.category);
+                chip.style.minWidth = '80px';
+                
+                chip.innerHTML = `
+                    <div class="text-2xl mb-1">${category.icon}</div>
+                    <div class="font-bold text-xs">${category.name}</div>
+                    <div class="text-[8px] text-slate-400 mt-1">${category.contestants.length}</div>
+                `;
+                
+                chip.onclick = () => {
+                    document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('selected'));
+                    chip.classList.add('selected');
+                    selectedCategory = category;
+                    
+                    // Update filters based on category
+                    updateFilters(category);
+                    
+                    // Display contestants
+                    displayContestants();
+                };
+                
+                categoryContainer.appendChild(chip);
+            });
+            
+            // Select first category by default
+            if (availableCategories.length > 0) {
+                selectedCategory = availableCategories[0];
+                updateFilters(selectedCategory);
+                displayContestants();
+            }
+        }
+
+        // Update filters based on selected category
+        function updateFilters(category) {
+            filterContainer.innerHTML = '<span class="filter-chip active" data-filter="all">✨ Semua</span>';
+            
+            // Get unique filter options from contestants
+            const filterOptions = new Set();
+            
+            category.contestants.forEach(contestant => {
+                // Check for common filter fields
+                if (contestant.region) filterOptions.add(contestant.region);
+                if (contestant.type) filterOptions.add(contestant.type);
+                if (contestant.warna) filterOptions.add(contestant.warna);
+                if (contestant.habitat) filterOptions.add(contestant.habitat);
+                if (contestant.element) filterOptions.add(contestant.element);
+                if (contestant.subregion) filterOptions.add(contestant.subregion);
+            });
+            
+            // Create filter chips
+            filterOptions.forEach(option => {
+                if (option) {
+                    const chip = document.createElement('span');
+                    chip.className = 'filter-chip';
+                    chip.setAttribute('data-filter', option);
+                    
+                    // Add appropriate icon
+                    let icon = '🔹';
+                    if (option.includes('asia')) icon = '🌏';
+                    else if (option.includes('eropa')) icon = '🇪🇺';
+                    else if (option.includes('amerika')) icon = '🌎';
+                    else if (option.includes('afrika')) icon = '🌍';
+                    else if (option.includes('mamalia')) icon = '🦁';
+                    else if (option.includes('burung')) icon = '🦅';
+                    else if (option.includes('reptil')) icon = '🐊';
+                    else if (option.includes('laut')) icon = '🐠';
+                    
+                    chip.innerHTML = `${icon} ${option}`;
+                    
+                    chip.onclick = () => {
+                        document.querySelectorAll('#filterContainer .filter-chip').forEach(c => c.classList.remove('active'));
+                        chip.classList.add('active');
+                        currentFilter = option;
+                        displayContestants();
+                    };
+                    
+                    filterContainer.appendChild(chip);
+                }
+            });
+        }
+
+        // Display contestants for selected category
+        function displayContestants() {
+            if (!selectedCategory) return;
+            
+            contestantGrid.innerHTML = '';
+            
+            let filtered = selectedCategory.contestants;
+            
+            // Apply filter
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(c => {
+                    return c.region === currentFilter || 
+                           c.type === currentFilter || 
+                           c.warna === currentFilter ||
+                           c.habitat === currentFilter ||
+                           c.element === currentFilter ||
+                           c.subregion === currentFilter;
+                });
+            }
+            
+            // Apply search
+            if (searchQuery) {
+                filtered = filtered.filter(c => 
+                    c.name.toLowerCase().includes(searchQuery)
+                );
+            }
+            
+            if (filtered.length === 0) {
+                contestantGrid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500">Tidak ada kontestan ditemukan</div>';
+                return;
+            }
+            
+            filtered.forEach((contestant, index) => {
+                const div = document.createElement('div');
+                div.className = 'glass p-3 rounded-xl contestant-chip flex flex-col items-center hover:scale-105';
+                div.style.animationDelay = `${index * 0.02}s`;
+                
+                const contestantId = contestant.id || contestant.name;
+                const isSelected = selectedContestants.some(c => 
+                    c.id === contestantId && c.category === selectedCategory.category
+                );
+                
+                if (isSelected) {
+                    div.classList.add('selected');
+                }
+                
+                // Use emoji or flag
+                const displayEmoji = contestant.emoji || contestant.flag || '🟢';
+                
+                div.innerHTML = `
+                    <span class="text-3xl mb-1">${displayEmoji}</span>
+                    <span class="text-xs truncate w-full text-center">${contestant.name}</span>
+                `;
+                
+                div.onclick = () => {
+                    const contestantWithCategory = {
+                        ...contestant,
+                        id: contestantId,
+                        category: selectedCategory.category,
+                        categoryName: selectedCategory.name,
+                        displayEmoji: displayEmoji
+                    };
+                    
+                    const index = selectedContestants.findIndex(c => 
+                        c.id === contestantId && c.category === selectedCategory.category
+                    );
+                    
+                    if (index === -1) {
+                        selectedContestants.push(contestantWithCategory);
+                        div.classList.add('selected');
+                    } else {
+                        selectedContestants.splice(index, 1);
+                        div.classList.remove('selected');
+                    }
+                    
+                    updateSelection();
+                };
+                
+                contestantGrid.appendChild(div);
+            });
+        }
+
+        // Search
+        searchContestant.oninput = (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            displayContestants();
+        };
+
+        // Select All
+        selectAllBtn.onclick = () => {
+            if (!selectedCategory) return;
+            
+            const currentContestants = selectedCategory.contestants.map(c => ({
+                ...c,
+                id: c.id || c.name,
+                category: selectedCategory.category,
+                categoryName: selectedCategory.name,
+                displayEmoji: c.emoji || c.flag || '🟢'
+            }));
+            
+            // Add only those not already selected
+            currentContestants.forEach(contestant => {
+                if (!selectedContestants.find(c => c.id === contestant.id && c.category === contestant.category)) {
+                    selectedContestants.push(contestant);
+                }
+            });
+            
+            // Update UI
+            document.querySelectorAll('.contestant-chip').forEach(chip => {
+                chip.classList.add('selected');
+            });
+            
+            updateSelection();
+        };
+
+        // Clear All
+        clearAllBtn.onclick = () => {
+            if (!selectedCategory) return;
+            
+            selectedContestants = selectedContestants.filter(c => 
+                c.category !== selectedCategory.category
+            );
+            
+            document.querySelectorAll('.contestant-chip').forEach(chip => {
+                chip.classList.remove('selected');
+            });
+            
+            updateSelection();
+        };
+
+        // Update selection preview
+        function updateSelection() {
+            // Update button
+            startBtn.disabled = selectedContestants.length === 0 || !selectedMap;
+            
+            // Update counter
+            selectedCount.textContent = selectedContestants.length;
+            
+            // Calculate total based on selected category
+            const totalInCategory = selectedCategory ? selectedCategory.contestants.length : 100;
+            const progress = (selectedContestants.filter(c => c.category === selectedCategory?.category).length / totalInCategory) * 100;
+            selectedProgress.style.width = `${Math.min(progress, 100)}%`;
+            
+            // Update preview
+            previewContestants.innerHTML = '';
+            if (selectedContestants.length === 0) {
+                const emptyText = document.createElement('div');
+                emptyText.className = 'text-slate-500 text-sm w-full text-center py-2';
+                emptyText.textContent = 'Belum ada kontestan dipilih';
+                previewContestants.appendChild(emptyText);
+            } else {
+                // Show first 20 contestants in preview
+                const toShow = selectedContestants.slice(0, 20);
+                toShow.forEach(contestant => {
+                    const span = document.createElement('span');
+                    span.className = 'text-2xl hover:scale-125 transition transform cursor-default relative group';
+                    span.textContent = contestant.displayEmoji;
+                    span.title = contestant.name;
+                    
+                    // Tooltip
+                    const tooltip = document.createElement('span');
+                    tooltip.className = 'absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-[8px] rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10';
+                    tooltip.textContent = contestant.name;
+                    span.appendChild(tooltip);
+                    
+                    previewContestants.appendChild(span);
+                });
+                
+                if (selectedContestants.length > 20) {
+                    const more = document.createElement('span');
+                    more.className = 'text-sm text-slate-400 ml-1';
+                    more.textContent = `+${selectedContestants.length - 20}`;
+                    previewContestants.appendChild(more);
+                }
+            }
+        }
+
+        // ==================== MAP FUNCTIONS ====================
+        async function loadMaps() {
+            // Show loading
+            mapGrid.innerHTML = '';
+            mapLoadingPlaceholder.classList.remove('hidden');
+            loadingMaps.classList.remove('hidden');
+            
+            availableMaps = [];
+            
+            try {
+                const mapFiles = [
+                    'maps/rainbow.html',
+                    'maps/aqua.html',
+                    'maps/map1.html',
+                    'maps/map2.html',
+                    'maps/map3.html',
+                    'maps/map4.html',
+                    'maps/map5.html',
+                    'maps/map6.html',
+                    'maps/map7.html',
+                    'maps/map8.html',
+                    'maps/map9.html',
+                    'maps/map10.html'
+                ];
+                
+                for (const mapFile of mapFiles) {
+                    try {
+                        const response = await fetch(mapFile);
+                        
+                        if (!response.ok) {
+                            console.log(`Map ${mapFile} tidak ditemukan`);
+                            continue;
+                        }
+                        
+                        const html = await response.text();
+                        
+                        const scriptRegex = /window\.mapData\s*=\s*({[\s\S]*?});\s*<\/script>/i;
+                        const match = html.match(scriptRegex);
+                        
+                        if (match && match[1]) {
+                            try {
+                                let jsonStr = match[1]
+                                    .replace(/\/\/.*?[\r\n]/g, '')
+                                    .replace(/\/\*[\s\S]*?\*\//g, '');
+                                
+                                const mapData = new Function('return ' + jsonStr)();
+                                
+                                if (mapData && mapData.id) {
+                                    availableMaps.push(mapData);
+                                    console.log(`✅ Map dimuat: ${mapData.name}`);
+                                }
+                            } catch (e) {
+                                console.error(`❌ Gagal parse ${mapFile}:`, e);
+                            }
+                        }
+                    } catch (e) {
+                        console.log(`Error loading ${mapFile}:`, e);
+                    }
+                }
+                
+                if (availableMaps.length === 0) {
+                    // Create default map
+                    availableMaps.push({
+                        id: 'classic',
+                        name: 'Classic Arena',
+                        icon: '⚪',
+                        description: 'Arena klasik dengan celah bergerak',
+                        background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
+                        color: '#4f46e5',
+                        shadowColor: 'rgba(79, 70, 229, 0.4)',
+                        difficulty: 'Normal',
+                        gapSize: 0.35,
+                        speed: 1.0
+                    });
+                }
+                
+                displayMaps();
+                
+            } catch (error) {
+                console.error('Error loading maps:', error);
+                mapGrid.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Gagal memuat maps</div>';
+            } finally {
+                loadingMaps.classList.add('hidden');
+                mapLoadingPlaceholder.classList.add('hidden');
+            }
+        }
+
+        // Display maps in grid
+        function displayMaps() {
+            mapGrid.innerHTML = '';
+            mapCount.textContent = `(${availableMaps.length} maps)`;
+            
+            availableMaps.forEach((map, index) => {
+                const div = document.createElement('div');
+                div.className = 'map-chip glass-dark p-3 rounded-xl';
+                div.setAttribute('data-map-id', map.id);
+                div.style.animationDelay = `${index * 0.05}s`;
+                
+                // Map preview mini
+                const preview = document.createElement('div');
+                preview.className = 'map-preview flex items-center justify-center';
+                preview.style.background = map.background;
+                
+                const miniCircle = document.createElement('div');
+                miniCircle.className = 'w-12 h-12 rounded-full border-4';
+                miniCircle.style.borderColor = map.color;
+                miniCircle.style.borderTopColor = 'transparent';
+                preview.appendChild(miniCircle);
+                
+                // Map info
+                const info = document.createElement('div');
+                info.className = 'flex items-center justify-between';
+                info.innerHTML = `
+                    <div>
+                        <div class="font-bold text-sm">${map.icon} ${map.name}</div>
+                        <div class="text-[10px] text-slate-400">${map.difficulty}</div>
+                    </div>
+                `;
+                
+                div.appendChild(preview);
+                div.appendChild(info);
+                
+                div.onclick = () => {
+                    document.querySelectorAll('.map-chip').forEach(m => m.classList.remove('selected'));
+                    div.classList.add('selected');
+                    selectedMap = map;
+                    updateMapPreview();
+                    updateSelection(); // Update start button state
+                };
+                
+                mapGrid.appendChild(div);
+            });
+            
+            // Select first map by default
+            if (availableMaps.length > 0) {
+                setTimeout(() => {
+                    const firstMap = document.querySelector('.map-chip');
+                    if (firstMap) {
+                        firstMap.classList.add('selected');
+                        selectedMap = availableMaps[0];
+                        updateMapPreview();
+                        updateSelection();
+                    }
+                }, 100);
+            }
+        }
+
+        // Update map preview
+        function updateMapPreview() {
+            if (!selectedMap) return;
+            
+            mapPreview.style.background = selectedMap.background;
+            previewCircle.style.borderColor = selectedMap.color;
+            mapDescription.textContent = selectedMap.description;
+            
+            // Update difficulty badge
+            mapDifficulty.textContent = selectedMap.difficulty;
+            mapDifficulty.className = `difficulty-badge difficulty-${selectedMap.difficulty.toLowerCase()}`;
+        }
+
+        // Refresh maps
+        refreshMapsBtn.onclick = () => {
+            loadMaps();
+        };
+
+        // ==================== START GAME ====================
+        startBtn.onclick = async () => {
+            if (!selectedMap) {
+                alert('Pilih map terlebih dahulu!');
+                return;
+            }
+            
+            if (selectedContestants.length === 0) {
+                alert('Pilih minimal satu kontestan!');
+                return;
+            }
+            
+            try {
+                // Tampilkan loading pada tombol
+                startBtn.innerHTML = 'Menyimpan... ⏳'
+                startBtn.disabled = true
+                
+                // Simpan ke database
+                const { session, sessionCode } = await saveGameSession()
+                
+                // Simpan ke localStorage
+                localStorage.setItem('selectedContestants', JSON.stringify(selectedContestants));
+                localStorage.setItem('gameMode', gameMode);
+                localStorage.setItem('selectedMap', JSON.stringify(selectedMap));
+                localStorage.setItem('lastSessionId', session.id);
+                localStorage.setItem('lastSessionCode', sessionCode);
+                
+                // Tampilkan modal share
+                sessionCodeInput.value = sessionCode;
+                sessionModal.classList.add('active');
+                
+                showToast('Game session berhasil dibuat!', 'success');
+                
+                // Redirect setelah 2 detik jika tidak ada interaksi
+                setTimeout(() => {
+                    if (!sessionModal.classList.contains('active')) {
+                        window.location.href = `main.html?session=${sessionCode}`;
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Gagal menyimpan session:', error);
+                showToast('Gagal menyimpan session. Menggunakan mode offline.', 'error');
+                
+                // Fallback ke mode lama
+                localStorage.setItem('selectedContestants', JSON.stringify(selectedContestants));
+                localStorage.setItem('gameMode', gameMode);
+                localStorage.setItem('selectedMap', JSON.stringify(selectedMap));
+                
+                // Redirect langsung
+                window.location.href = 'main.html';
+            }
+        };
+
+        // ==================== MODAL FUNCTIONS ====================
+        function showLeaderboard() {
+            leaderboardModal.classList.add('active');
+            loadLeaderboardData();
+        }
+
+        function closeLeaderboardModal() {
+            leaderboardModal.classList.remove('active');
+        }
+
+        function closeSessionModal() {
+            sessionModal.classList.remove('active');
+            // Redirect ke main setelah modal ditutup
+            const sessionCode = sessionCodeInput.value;
+            if (sessionCode) {
+                window.location.href = `main.html?session=${sessionCode}`;
+            }
+        }
+
+        function copySessionCode() {
+            sessionCodeInput.select();
+            document.execCommand('copy');
+            showToast('Kode session disalin!', 'success');
+            
+            // Tawarkan untuk langsung main
+            if (confirm('Kode sudah disalin. Mulai game sekarang?')) {
+                closeSessionModal();
+            }
+        }
+
+        function showLastSession() {
+            getLastSession();
+        }
+
+        async function loadLeaderboardData() {
+            try {
+                const data = await getGlobalLeaderboard(20);
+                
+                if (data.length === 0) {
+                    leaderboardList.innerHTML = '<div class="text-center py-8 text-slate-500">Belum ada data leaderboard</div>';
+                    return;
+                }
+                
+                leaderboardList.innerHTML = data.map((player, index) => `
+                    <div class="glass p-3 rounded-xl flex items-center gap-3 hover:scale-102 transition">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold 
+                            ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-700' : 'bg-slate-700'}">
+                            #${index + 1}
+                        </div>
+                        <div class="text-2xl">${player.player_emoji || '👤'}</div>
+                        <div class="flex-1">
+                            <div class="font-bold text-sm">${player.player_name}</div>
+                            <div class="text-[10px] text-slate-400">${new Date(player.created_at).toLocaleDateString('id-ID')}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold text-indigo-400">${player.total_wins}</div>
+                            <div class="text-[10px] text-slate-400">menang</div>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+                leaderboardList.innerHTML = '<div class="text-center py-8 text-red-400">Gagal memuat leaderboard</div>';
+            }
+        }
+
+        // ==================== INITIALIZATION ====================
+        // Load maps on page load
+        loadMaps();
+        
+        // Load contestants on page load
+        loadContestants();
+
+        // Initialize with empty preview
+        updateSelection();
+
+        // Cek apakah ada session code di URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionFromUrl = urlParams.get('session');
+        
+        if (sessionFromUrl) {
+            // Tampilkan info bahwa ini adalah join game
+            showToast(`Bergabung dengan session: ${sessionFromUrl}`, 'info');
+        }
+
+        // Auto-refresh leaderboard setiap 30 detik jika modal terbuka
+        setInterval(() => {
+            if (leaderboardModal.classList.contains('active')) {
+                loadLeaderboardData();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

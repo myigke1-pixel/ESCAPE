@@ -1,0 +1,72 @@
+<script>
+window.contestantData = {
+    category: "negara",
+    name: "🌍 Negara-Negara",
+    icon: "🌍",
+    description: "Bendera negara dari seluruh dunia",
+    contestants: [
+        // ASEAN
+        { id: "id", name: "Indonesia", flag: "🇮🇩", emoji: "🇮🇩", region: "asia", subregion: "asean", color: "#ff0000" },
+        { id: "my", name: "Malaysia", flag: "🇲🇾", emoji: "🇲🇾", region: "asia", subregion: "asean", color: "#010066" },
+        { id: "sg", name: "Singapura", flag: "🇸🇬", emoji: "🇸🇬", region: "asia", subregion: "asean", color: "#ff0000" },
+        { id: "th", name: "Thailand", flag: "🇹🇭", emoji: "🇹🇭", region: "asia", subregion: "asean", color: "#241d4f" },
+        { id: "vn", name: "Vietnam", flag: "🇻🇳", emoji: "🇻🇳", region: "asia", subregion: "asean", color: "#da251d" },
+        { id: "ph", name: "Filipina", flag: "🇵🇭", emoji: "🇵🇭", region: "asia", subregion: "asean", color: "#0038a8" },
+        { id: "mm", name: "Myanmar", flag: "🇲🇲", emoji: "🇲🇲", region: "asia", subregion: "asean", color: "#fecb00" },
+        { id: "kh", name: "Kamboja", flag: "🇰🇭", emoji: "🇰🇭", region: "asia", subregion: "asean", color: "#032ea1" },
+        { id: "la", name: "Laos", flag: "🇱🇦", emoji: "🇱🇦", region: "asia", subregion: "asean", color: "#002868" },
+        { id: "bn", name: "Brunei", flag: "🇧🇳", emoji: "🇧🇳", region: "asia", subregion: "asean", color: "#f7e017" },
+        
+        // Asia Lainnya
+        { id: "jp", name: "Jepang", flag: "🇯🇵", emoji: "🇯🇵", region: "asia", color: "#bc002d" },
+        { id: "kr", name: "Korea Selatan", flag: "🇰🇷", emoji: "🇰🇷", region: "asia", color: "#cd2e3a" },
+        { id: "cn", name: "China", flag: "🇨🇳", emoji: "🇨🇳", region: "asia", color: "#ff0000" },
+        { id: "in", name: "India", flag: "🇮🇳", emoji: "🇮🇳", region: "asia", color: "#ff9933" },
+        { id: "pk", name: "Pakistan", flag: "🇵🇰", emoji: "🇵🇰", region: "asia", color: "#01411c" },
+        
+        // Timur Tengah
+        { id: "ps", name: "Palestina", flag: "🇵🇸", emoji: "🇵🇸", region: "timur-tengah", color: "#000000" },
+        { id: "sa", name: "Arab Saudi", flag: "🇸🇦", emoji: "🇸🇦", region: "timur-tengah", color: "#006c35" },
+        { id: "ae", name: "Uni Emirat Arab", flag: "🇦🇪", emoji: "🇦🇪", region: "timur-tengah", color: "#00732f" },
+        { id: "qa", name: "Qatar", flag: "🇶🇦", emoji: "🇶🇦", region: "timur-tengah", color: "#8d1b3d" },
+        { id: "kw", name: "Kuwait", flag: "🇰🇼", emoji: "🇰🇼", region: "timur-tengah", color: "#007a3d" },
+        { id: "ir", name: "Iran", flag: "🇮🇷", emoji: "🇮🇷", region: "timur-tengah", color: "#239f40" },
+        { id: "iq", name: "Irak", flag: "🇮🇶", emoji: "🇮🇶", region: "timur-tengah", color: "#ce1126" },
+        { id: "sy", name: "Suriah", flag: "🇸🇾", emoji: "🇸🇾", region: "timur-tengah", color: "#000000" },
+        { id: "jo", name: "Yordania", flag: "🇯🇴", emoji: "🇯🇴", region: "timur-tengah", color: "#ce1126" },
+        { id: "lb", name: "Lebanon", flag: "🇱🇧", emoji: "🇱🇧", region: "timur-tengah", color: "#ed1c24" },
+        
+        // Eropa
+        { id: "de", name: "Jerman", flag: "🇩🇪", emoji: "🇩🇪", region: "eropa", color: "#000000" },
+        { id: "fr", name: "Prancis", flag: "🇫🇷", emoji: "🇫🇷", region: "eropa", color: "#002395" },
+        { id: "nl", name: "Belanda", flag: "🇳🇱", emoji: "🇳🇱", region: "eropa", color: "#21468b" },
+        { id: "gb", name: "Inggris", flag: "🇬🇧", emoji: "🇬🇧", region: "eropa", color: "#012169" },
+        { id: "it", name: "Italia", flag: "🇮🇹", emoji: "🇮🇹", region: "eropa", color: "#009246" },
+        { id: "es", name: "Spanyol", flag: "🇪🇸", emoji: "🇪🇸", region: "eropa", color: "#c60b1e" },
+        { id: "pt", name: "Portugal", flag: "🇵🇹", emoji: "🇵🇹", region: "eropa", color: "#006600" },
+        { id: "be", name: "Belgia", flag: "🇧🇪", emoji: "🇧🇪", region: "eropa", color: "#000000" },
+        { id: "ch", name: "Swiss", flag: "🇨🇭", emoji: "🇨🇭", region: "eropa", color: "#ff0000" },
+        { id: "se", name: "Swedia", flag: "🇸🇪", emoji: "🇸🇪", region: "eropa", color: "#006aa7" },
+        { id: "no", name: "Norwegia", flag: "🇳🇴", emoji: "🇳🇴", region: "eropa", color: "#ba0c2f" },
+        { id: "dk", name: "Denmark", flag: "🇩🇰", emoji: "🇩🇰", region: "eropa", color: "#c60c30" },
+        { id: "fi", name: "Finlandia", flag: "🇫🇮", emoji: "🇫🇮", region: "eropa", color: "#002f6c" },
+        { id: "ru", name: "Rusia", flag: "🇷🇺", emoji: "🇷🇺", region: "eropa", color: "#d52b1e" },
+        { id: "pl", name: "Polandia", flag: "🇵🇱", emoji: "🇵🇱", region: "eropa", color: "#dc143c" },
+        
+        // Amerika
+        { id: "us", name: "Amerika Serikat", flag: "🇺🇸", emoji: "🇺🇸", region: "amerika", color: "#002868" },
+        { id: "ar", name: "Argentina", flag: "🇦🇷", emoji: "🇦🇷", region: "amerika", color: "#75aadb" },
+        { id: "br", name: "Brasil", flag: "🇧🇷", emoji: "🇧🇷", region: "amerika", color: "#009c3b" },
+        { id: "ca", name: "Kanada", flag: "🇨🇦", emoji: "🇨🇦", region: "amerika", color: "#ff0000" },
+        { id: "mx", name: "Meksiko", flag: "🇲🇽", emoji: "🇲🇽", region: "amerika", color: "#006847" },
+        { id: "co", name: "Kolombia", flag: "🇨🇴", emoji: "🇨🇴", region: "amerika", color: "#fcd116" },
+        
+        // Afrika
+        { id: "za", name: "Afrika Selatan", flag: "🇿🇦", emoji: "🇿🇦", region: "afrika", color: "#007a4d" },
+        { id: "ng", name: "Nigeria", flag: "🇳🇬", emoji: "🇳🇬", region: "afrika", color: "#008753" },
+        { id: "ke", name: "Kenya", flag: "🇰🇪", emoji: "🇰🇪", region: "afrika", color: "#006600" },
+        { id: "eg", name: "Mesir", flag: "🇪🇬", emoji: "🇪🇬", region: "afrika", color: "#ce1126" },
+        { id: "ma", name: "Maroko", flag: "🇲🇦", emoji: "🇲🇦", region: "afrika", color: "#c1272d" }
+    ]
+};
+</script>
