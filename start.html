@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escape Challenge - Pilih Mode & Map</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Tambahkan Supabase -->
+    <!-- Tambahkan Supabase dan utils.js -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="utils.js"></script>
     <style>
         body {
             margin: 0;
@@ -533,8 +534,6 @@
     </div>
 
     <script>
-        
-
         // ==================== VARIABLES ====================
         let selectedContestants = [];
         let availableCategories = [];
@@ -597,111 +596,6 @@
             setTimeout(() => {
                 toast.remove();
             }, 3000);
-        }
-
-        function generateSessionCode() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-            let code = ''
-            for (let i = 0; i < 6; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length))
-            }
-            return code
-        }
-
-        // ==================== DATABASE FUNCTIONS ====================
-        async function saveGameSession() {
-            try {
-                const sessionCode = generateSessionCode()
-                
-                // Cek apakah kode sudah ada
-                const { data: existing } = await supabase
-                    .from('game_sessions')
-                    .select('session_code')
-                    .eq('session_code', sessionCode)
-                
-                if (existing && existing.length > 0) {
-                    return saveGameSession() // generate ulang
-                }
-                
-                // Simpan session
-                const { data: session, error: sessionError } = await supabase
-                    .from('game_sessions')
-                    .insert([{
-                        session_code: sessionCode,
-                        mode: gameMode,
-                        map_id: selectedMap.id,
-                        map_data: selectedMap,
-                        status: 'waiting'
-                    }])
-                    .select()
-                    .single()
-                
-                if (sessionError) throw sessionError
-                
-                // Simpan contestants
-                const contestantsData = selectedContestants.map(c => ({
-                    session_id: session.id,
-                    contestant_name: c.name,
-                    contestant_emoji: c.displayEmoji || c.emoji || c.flag,
-                    contestant_category: c.category,
-                    contestant_data: c
-                }))
-                
-                const { error: contestantsError } = await supabase
-                    .from('session_contestants')
-                    .insert(contestantsData)
-                
-                if (contestantsError) throw contestantsError
-                
-                return { session, sessionCode }
-                
-            } catch (error) {
-                console.error('Error saving game session:', error)
-                throw error
-            }
-        }
-
-        async function getGlobalLeaderboard(limit = 10) {
-            try {
-                const { data, error } = await supabase
-                    .from('global_leaderboard')
-                    .select('*')
-                    .order('total_wins', { ascending: false })
-                    .limit(limit)
-                
-                if (error) throw error
-                return data || []
-            } catch (error) {
-                console.error('Error loading leaderboard:', error)
-                return []
-            }
-        }
-
-        async function getLastSession() {
-            try {
-                const lastSessionId = localStorage.getItem('lastSessionId')
-                if (!lastSessionId) {
-                    showToast('Belum ada session sebelumnya', 'info')
-                    return
-                }
-                
-                const { data: session, error } = await supabase
-                    .from('game_sessions')
-                    .select('*, session_contestants(*)')
-                    .eq('id', lastSessionId)
-                    .single()
-                
-                if (error) throw error
-                
-                if (session) {
-                    // Tampilkan info session
-                    showToast(`Session terakhir: ${session.session_code} (${session.mode})`, 'info')
-                }
-                
-            } catch (error) {
-                console.error('Error loading last session:', error)
-                showToast('Gagal memuat session terakhir', 'error')
-            }
         }
 
         // ==================== MODE SELECTION ====================
@@ -1068,92 +962,92 @@
         }
 
         // ==================== MAP FUNCTIONS ====================
-        // ==================== MAP FUNCTIONS ====================
-async function loadMaps() {
-    // Show loading
-    mapGrid.innerHTML = '';
-    mapLoadingPlaceholder.classList.remove('hidden');
-    loadingMaps.classList.remove('hidden');
-    
-    availableMaps = [];
-    
-    try {
-        // Daftar file map yang ADA di folder maps/
-        const mapFiles = [
-            'maps/aqua.html',
-            'maps/map1.html',
-            'maps/map2.html',
-            'maps/map3.html',
-            'maps/map4.html',
-            'maps/map5.html',
-            'maps/map6.html',
-            'maps/map7.html',
-            'maps/map8.html',
-            'maps/map9.html',
-            'maps/map10.html'
-        ];
-        
-        for (const mapFile of mapFiles) {
+        async function loadMaps() {
+            // Show loading
+            mapGrid.innerHTML = '';
+            mapLoadingPlaceholder.classList.remove('hidden');
+            loadingMaps.classList.remove('hidden');
+            
+            availableMaps = [];
+            
             try {
-                const response = await fetch(mapFile);
+                // Daftar semua file map yang ada
+                const mapFiles = [
+                    'maps/aqua.html',
+                    'maps/map1.html',
+                    'maps/map2.html',
+                    'maps/map3.html',
+                    'maps/map4.html',
+                    'maps/map5.html',
+                    'maps/map6.html',
+                    'maps/map7.html',
+                    'maps/map8.html',
+                    'maps/map9.html',
+                    'maps/map10.html'
+                ];
                 
-                if (!response.ok) {
-                    console.log(`Map ${mapFile} tidak ditemukan`);
-                    continue;
-                }
-                
-                const html = await response.text();
-                
-                const scriptRegex = /window\.mapData\s*=\s*({[\s\S]*?});\s*<\/script>/i;
-                const match = html.match(scriptRegex);
-                
-                if (match && match[1]) {
+                for (const mapFile of mapFiles) {
                     try {
-                        let jsonStr = match[1]
-                            .replace(/\/\/.*?[\r\n]/g, '')
-                            .replace(/\/\*[\s\S]*?\*\//g, '');
+                        const response = await fetch(mapFile);
                         
-                        const mapData = new Function('return ' + jsonStr)();
+                        if (!response.ok) {
+                            console.log(`Map ${mapFile} tidak ditemukan`);
+                            continue;
+                        }
                         
-                        if (mapData && mapData.id) {
-                            availableMaps.push(mapData);
-                            console.log(`✅ Map dimuat: ${mapData.name}`);
+                        const html = await response.text();
+                        
+                        const scriptRegex = /window\.mapData\s*=\s*({[\s\S]*?});\s*<\/script>/i;
+                        const match = html.match(scriptRegex);
+                        
+                        if (match && match[1]) {
+                            try {
+                                let jsonStr = match[1]
+                                    .replace(/\/\/.*?[\r\n]/g, '')
+                                    .replace(/\/\*[\s\S]*?\*\//g, '');
+                                
+                                const mapData = new Function('return ' + jsonStr)();
+                                
+                                if (mapData && mapData.id) {
+                                    availableMaps.push(mapData);
+                                    console.log(`✅ Map dimuat: ${mapData.name} (${mapData.id})`);
+                                }
+                            } catch (e) {
+                                console.error(`❌ Gagal parse ${mapFile}:`, e);
+                            }
                         }
                     } catch (e) {
-                        console.error(`❌ Gagal parse ${mapFile}:`, e);
+                        console.log(`Error loading ${mapFile}:`, e);
                     }
                 }
-            } catch (e) {
-                console.log(`Error loading ${mapFile}:`, e);
+                
+                // Kalau tidak ada map, tambahkan default
+                if (availableMaps.length === 0) {
+                    console.log('Tidak ada map, menggunakan default');
+                    availableMaps.push({
+                        id: 'classic',
+                        name: 'Classic Arena',
+                        icon: '⚪',
+                        description: 'Arena klasik dengan celah bergerak',
+                        background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
+                        color: '#4f46e5',
+                        shadowColor: 'rgba(79, 70, 229, 0.4)',
+                        difficulty: 'Normal',
+                        gapSize: 0.35,
+                        speed: 1.0
+                    });
+                }
+                
+                displayMaps();
+                
+            } catch (error) {
+                console.error('Error loading maps:', error);
+                mapGrid.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Gagal memuat maps</div>';
+            } finally {
+                loadingMaps.classList.add('hidden');
+                mapLoadingPlaceholder.classList.add('hidden');
             }
         }
-        
-        // Kalau tidak ada map, pake default
-        if (availableMaps.length === 0) {
-            availableMaps.push({
-                id: 'classic',
-                name: 'Classic Arena',
-                icon: '⚪',
-                description: 'Arena klasik dengan celah bergerak',
-                background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
-                color: '#4f46e5',
-                shadowColor: 'rgba(79, 70, 229, 0.4)',
-                difficulty: 'Normal',
-                gapSize: 0.35,
-                speed: 1.0
-            });
-        }
-        
-        displayMaps();
-        
-    } catch (error) {
-        console.error('Error loading maps:', error);
-        mapGrid.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Gagal memuat maps</div>';
-    } finally {
-        loadingMaps.classList.add('hidden');
-        mapLoadingPlaceholder.classList.add('hidden');
-    }
-}
 
         // Display maps in grid
         function displayMaps() {
@@ -1195,7 +1089,7 @@ async function loadMaps() {
                     div.classList.add('selected');
                     selectedMap = map;
                     updateMapPreview();
-                    updateSelection(); // Update start button state
+                    updateSelection();
                 };
                 
                 mapGrid.appendChild(div);
@@ -1250,18 +1144,18 @@ async function loadMaps() {
                 startBtn.innerHTML = 'Menyimpan... ⏳'
                 startBtn.disabled = true
                 
-                // Simpan ke database
-                const { session, sessionCode } = await saveGameSession()
+                // Panggil dari gameDB (utils.js)
+                const session = await gameDB.saveGameSession(gameMode, selectedMap, selectedContestants)
                 
                 // Simpan ke localStorage
                 localStorage.setItem('selectedContestants', JSON.stringify(selectedContestants));
                 localStorage.setItem('gameMode', gameMode);
                 localStorage.setItem('selectedMap', JSON.stringify(selectedMap));
                 localStorage.setItem('lastSessionId', session.id);
-                localStorage.setItem('lastSessionCode', sessionCode);
+                localStorage.setItem('lastSessionCode', session.session_code);
                 
                 // Tampilkan modal share
-                sessionCodeInput.value = sessionCode;
+                sessionCodeInput.value = session.session_code;
                 sessionModal.classList.add('active');
                 
                 showToast('Game session berhasil dibuat!', 'success');
@@ -1269,7 +1163,7 @@ async function loadMaps() {
                 // Redirect setelah 2 detik jika tidak ada interaksi
                 setTimeout(() => {
                     if (!sessionModal.classList.contains('active')) {
-                        window.location.href = `main.html?session=${sessionCode}`;
+                        window.location.href = `main.html?session=${session.session_code}`;
                     }
                 }, 2000);
                 
@@ -1318,12 +1212,22 @@ async function loadMaps() {
         }
 
         function showLastSession() {
-            getLastSession();
+            const lastSessionId = localStorage.getItem('lastSessionId');
+            const lastSessionCode = localStorage.getItem('lastSessionCode');
+            
+            if (lastSessionId && lastSessionCode) {
+                showToast(`Session terakhir: ${lastSessionCode}`, 'info');
+                if (confirm('Lanjutkan session terakhir?')) {
+                    window.location.href = `main.html?session=${lastSessionCode}`;
+                }
+            } else {
+                showToast('Belum ada session sebelumnya', 'info');
+            }
         }
 
         async function loadLeaderboardData() {
             try {
-                const data = await getGlobalLeaderboard(20);
+                const data = await gameDB.getGlobalLeaderboard(20);
                 
                 if (data.length === 0) {
                     leaderboardList.innerHTML = '<div class="text-center py-8 text-slate-500">Belum ada data leaderboard</div>';

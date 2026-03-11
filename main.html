@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escape Challenge - Gameplay</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Tambahkan Supabase -->
+    <!-- Tambahkan Supabase dan utils.js -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="utils.js"></script>
     <style>
         * {
             margin: 0;
@@ -627,11 +628,11 @@
         </div>
     </div>
 
-
+    <script>
+        // ==================== MAIN.JS ====================
+        // Supabase sudah diinisialisasi di utils.js
+        // Variable 'supabase' sudah tersedia secara global dari utils.js
         
-        // Inisialisasi Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const replayBtn = document.getElementById('replayBtn');
@@ -740,84 +741,18 @@
             if (!currentSessionId || escapedOrder.length === 0) return;
             
             try {
-                const winner = escapedOrder[0];
-                
-                // Update session status
-                await supabase
-                    .from('game_sessions')
-                    .update({ 
-                        status: 'completed',
-                        completed_at: new Date()
-                    })
-                    .eq('id', currentSessionId);
-                
-                // Update escaped order untuk contestants
-                for (let i = 0; i < escapedOrder.length; i++) {
-                    const contestant = escapedOrder[i];
-                    await supabase
-                        .from('session_contestants')
-                        .update({ 
-                            escaped_order: i + 1,
-                            escaped_at: new Date(),
-                            round_number: currentRoundNum
-                        })
-                        .eq('session_id', currentSessionId)
-                        .eq('contestant_name', contestant.name);
-                }
-                
-                // Simpan ke history
-                await supabase
-                    .from('game_history')
-                    .insert([{
-                        session_id: currentSessionId,
-                        round_number: currentRoundNum,
-                        winner_name: winner.name,
-                        winner_emoji: winner.displayEmoji || winner.emoji || winner.flag,
-                        escaped_contestants: escapedOrder,
-                        duration_seconds: gameTime
-                    }]);
-                
-                // Update global leaderboard
-                await updateGlobalLeaderboard(winner.name, winner.displayEmoji || winner.emoji || winner.flag);
+                // Gunakan fungsi dari gameDB (utils.js)
+                await gameDB.updateGameResult(
+                    currentSessionId, 
+                    currentRoundNum, 
+                    escapedOrder, 
+                    gameTime
+                );
                 
                 console.log('✅ Game result saved to database');
                 
             } catch (error) {
                 console.error('Error saving game result:', error);
-            }
-        }
-
-        async function updateGlobalLeaderboard(playerName, playerEmoji) {
-            try {
-                // Cek apakah player sudah ada
-                const { data: existing } = await supabase
-                    .from('global_leaderboard')
-                    .select('*')
-                    .eq('player_name', playerName);
-                
-                if (existing && existing.length > 0) {
-                    // Update existing
-                    await supabase
-                        .from('global_leaderboard')
-                        .update({ 
-                            total_wins: existing[0].total_wins + 1,
-                            total_games: existing[0].total_games + 1,
-                            updated_at: new Date()
-                        })
-                        .eq('id', existing[0].id);
-                } else {
-                    // Insert new
-                    await supabase
-                        .from('global_leaderboard')
-                        .insert([{
-                            player_name: playerName,
-                            player_emoji: playerEmoji,
-                            total_wins: 1,
-                            total_games: 1
-                        }]);
-                }
-            } catch (error) {
-                console.error('Error updating leaderboard:', error);
             }
         }
 
